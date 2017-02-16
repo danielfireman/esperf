@@ -1,0 +1,13 @@
+{
+	"comment": "",
+	"ignore": "test",
+	"package": [
+		{
+			"checksumSHA1": "f/eVIww5Y//uSP4IKef7eef+mJs=",
+			"path": "gopkg.in/olivere/elastic.v5",
+			"revision": "4f7c9774c6041d96b9c522cfcbb657a5a49dbbb2",
+			"revisionTime": "2017-02-10T13:58:12Z"
+		}
+	],
+	"rootPath": "github.com/danielfireman/esperf"
+}
