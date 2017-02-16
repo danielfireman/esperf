@@ -15,6 +15,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/spenczar/tdigest"
 	"gopkg.in/olivere/elastic.v5"
 )
 
@@ -29,9 +30,48 @@ var (
 	cint        = flag.Duration("cint", 5*time.Second, "Interval between metrics collection.")
 )
 
+type Snapshot struct {
+	td tdigest.TDigest
+}
+
+func (s *Snapshot) Quantile(q float64) float64 {
+	return s.td.Quantile(q)
+}
+
+type ResponseTimeStats struct {
+	sync.Mutex
+	count int64
+	td    tdigest.TDigest
+	buff  []int64
+}
+
+func (s *ResponseTimeStats) Record(v int64) {
+	s.Lock()
+	defer s.Unlock()
+	s.buff = append(s.buff, v)
+	s.count++
+}
+
+func (s *ResponseTimeStats) Snapshot() (*Snapshot, int64) {
+	s.Lock()
+	auxBuff := make([]int64, len(s.buff))
+	copy(auxBuff, s.buff)
+	s.buff = nil
+	count := s.count
+	s.Unlock()
+
+	td := tdigest.New()
+	for _, v := range auxBuff {
+		td.Add(float64(v), 1)
+	}
+
+	return &Snapshot{td}, count
+}
+
 var (
 	succs, errs, reqs, shed uint64
 	logger                  = log.New(os.Stdout, "", log.LstdFlags|log.Lshortfile)
+	respTimeStats           = &ResponseTimeStats{}
 )
 
 func main() {
@@ -85,8 +125,7 @@ func main() {
 
 func worker(pause chan float64, end chan struct{}, wg *sync.WaitGroup) {
 	defer wg.Done()
-	durSecs := (*duration).Seconds()
-	numReq := (*qps * int(durSecs)) / *workers
+	numReq := (*qps * int((*duration).Seconds())) / *workers
 	if numReq == 0 {
 		logger.Fatalf("To few requests per worker, please increase the qps or decrease the number of workers")
 	}
@@ -96,7 +135,7 @@ func worker(pause chan float64, end chan struct{}, wg *sync.WaitGroup) {
 		logger.Fatal(err)
 	}
 	ctx := context.Background()
-	fire := time.Tick(time.Duration((durSecs*float64(1e9))/float64(numReq)) * time.Nanosecond)
+	fire := time.Tick(time.Duration(float64((*duration).Nanoseconds())/float64(numReq)) * time.Nanosecond)
 	for i := 0; i < numReq; i++ {
 		select {
 		case <-fire:
@@ -124,13 +163,14 @@ func sendRequest(ctx context.Context, client *elastic.Client, pauseChan chan flo
 	switch {
 	case s == http.StatusOK:
 		atomic.AddUint64(&succs, 1)
+		respTimeStats.Record(resp.TookInMillis)
 	case s == http.StatusTooManyRequests || s == http.StatusServiceUnavailable:
 		atomic.AddUint64(&shed, 1)
 		ra := resp.Header.Get("Retry-After")
 		if ra != "" {
 			pt, err := strconv.ParseFloat(ra, 64)
 			if err != nil {
-				fmt.Printf("%q\n", err)
+				logger.Printf("%q\n", err)
 			} else {
 				pauseChan <- pt
 			}
@@ -147,13 +187,7 @@ func statsCollector(end chan struct{}, wg *sync.WaitGroup) {
 	if err != nil {
 		logger.Fatalf("Error creating ES stats client: %q", err)
 	}
-
 	ctx := context.Background()
-	r, err := client.Count(*index).Do(ctx)
-	if err != nil {
-		logger.Fatalf("Could not infer the number of shards. Err: %q", err)
-	}
-	shards := r.Shards.Successful
 
 	mF := newFile("mem.pools")
 	defer mF.Close()
@@ -175,20 +209,29 @@ func statsCollector(end chan struct{}, wg *sync.WaitGroup) {
 	cpu := csv.NewWriter(bufio.NewWriter(cpuF))
 	writeCPUHeader(cpu)
 
+	lF := newFile("latency")
+	defer lF.Close()
+	latency := csv.NewWriter(bufio.NewWriter(lF))
+	writeLatencyHeader(latency)
+
+	nodeStatsService := client.NodesStats().Metric("jvm", "indices", "process")
+
 	collect := func() {
-		s := client.NodesStats().Metric("jvm", "indices", "process")
-		resp, err := s.Do(ctx)
+		resp, err := nodeStatsService.Do(ctx)
 		if err != nil {
 			logger.Printf("%q\n", err)
+			return
 		}
 		var ns *elastic.NodesStatsNode
 		for _, ns = range resp.Nodes {
 		}
 		ts := ns.JVM.Timestamp
+		s, count := respTimeStats.Snapshot()
 		writeMem(ns, memPools, ts)
 		writeGC(ns, gc, ts)
-		writeTp(ns, tp, ts, shards)
+		writeTp(tp, ts, count)
 		writeCPU(ns, cpu, ts)
+		writeLatency(s, latency, ts)
 	}
 
 	fire := time.Tick(*cint)
@@ -213,17 +256,30 @@ func newFile(fName string) *os.File {
 	return f
 }
 
-func writeTpHeader(w *csv.Writer) {
-	w.Write([]string{"ts", "time", "count"})
+func writeLatencyHeader(w *csv.Writer) {
+	w.Write([]string{"ts", "50perc", "90perc", "99perc", "999perc"})
 	w.Flush()
 }
 
-func writeTp(stats *elastic.NodesStatsNode, w *csv.Writer, ts int64, shards int) {
-	s := stats.Indices.Search
+func writeLatency(s *Snapshot, w *csv.Writer, ts int64) {
 	w.Write([]string{
 		strconv.FormatInt(ts, 10),
-		fmt.Sprintf("%.2f", float64(s.QueryTotal)/float64(shards)),
-		strconv.FormatInt(s.QueryTimeInMillis, 10)})
+		fmt.Sprintf("%.2f", float64(s.Quantile(0.5))),
+		fmt.Sprintf("%.2f", float64(s.Quantile(0.9))),
+		fmt.Sprintf("%.2f", float64(s.Quantile(0.99))),
+		fmt.Sprintf("%.2f", float64(s.Quantile(0.999)))})
+	w.Flush()
+}
+
+func writeTpHeader(w *csv.Writer) {
+	w.Write([]string{"ts", "count"})
+	w.Flush()
+}
+
+func writeTp(w *csv.Writer, ts int64, count int64) {
+	w.Write([]string{
+		strconv.FormatInt(ts, 10),
+		strconv.FormatInt(count, 10)})
 	w.Flush()
 }
 

@@ -3,6 +3,12 @@
 	"ignore": "test",
 	"package": [
 		{
+			"checksumSHA1": "h7XQ+skBK3lPd0YCiX0p+rXvpco=",
+			"path": "github.com/spenczar/tdigest",
+			"revision": "78a75964bd605a2b7167a034cf51ee0d6f854704",
+			"revisionTime": "2016-10-20T19:34:09Z"
+		},
+		{
 			"checksumSHA1": "f/eVIww5Y//uSP4IKef7eef+mJs=",
 			"path": "gopkg.in/olivere/elastic.v5",
 			"revision": "4f7c9774c6041d96b9c522cfcbb657a5a49dbbb2",
