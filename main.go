@@ -11,10 +11,9 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"sync"
 	"sync/atomic"
 	"time"
-
-	"sync"
 
 	"gopkg.in/olivere/elastic.v5"
 )
@@ -32,64 +31,76 @@ var (
 
 var (
 	succs, errs, reqs, shed uint64
-	pauseChan               = make(chan float64, *workers)
-	endChan                 = make(chan struct{}, *workers)
-	statsWaiter             = sync.WaitGroup{}
+	logger                  = log.New(os.Stdout, "", log.LstdFlags|log.Lshortfile)
 )
 
 func main() {
 	flag.Parse()
-	fmt.Printf("Starting sending load:\n\t#Workers:%d\n\tGlobalQPS:%d\n\tDuration:%v\n", *workers, *qps, *duration)
+	logger.Printf("Starting sending load: #Workers:%d GlobalQPS:%d Duration:%v\n", *workers, *qps, *duration)
 
-	logger := log.New(os.Stdout, "elastic", log.LstdFlags)
 	elastic.SetErrorLog(logger)
 	elastic.SetTraceLog(logger)
 	elastic.SetInfoLog(logger)
 	elastic.SetMaxRetries(0)
 	elastic.SetSniff(false)
 
+	endStatsChan := make(chan struct{})
+	var statsWaiter sync.WaitGroup
 	statsWaiter.Add(1)
-	go statsCollector(endChan)
+	go statsCollector(endStatsChan, &statsWaiter)
+	logger.Println("Stats collector started.")
+
+	endLoadChan := make(chan struct{}, *workers)
+	pauseLoadChan := make(chan float64, *workers)
+	var loadWaiter sync.WaitGroup
 	for i := 0; i < *workers; i++ {
-		go worker(pauseChan, endChan)
+		loadWaiter.Add(1)
+		go worker(pauseLoadChan, endLoadChan, &loadWaiter)
 	}
+	logger.Printf("%d load workers have started. Waiting for their hard work...\n", *workers)
 
 	start := time.Now()
-	end := time.Tick(*duration)
-	<-end // Blocking until the of the load test.
-	for i := 0; i < *workers+1; i++ {
-		endChan <- struct{}{}
+	<-time.Tick(*duration)
+	for i := 0; i < *workers; i++ {
+		endLoadChan <- struct{}{}
 	}
+	loadWaiter.Wait()
+	close(endLoadChan)
+	close(pauseLoadChan)
+
 	dur := time.Now().Sub(start).Seconds()
-	fmt.Printf("ts,qps,totalReq,succReq,errReq,shed,throughput\n")
-	fmt.Printf("%d,%.2f,%d,%d,%d,%d,%.2f\n", time.Now().Unix(), float64(reqs)/dur, reqs, succs, errs, shed, float64(succs)/dur)
+	logger.Printf("Done. QPS:%.2f #REQS:%d #SUCC:%d #ERR:%d #SHED:%d TP:%.2f", float64(reqs)/dur, reqs, succs, errs, shed, float64(succs)/dur)
 	atomic.StoreUint64(&reqs, 0)
 	atomic.StoreUint64(&succs, 0)
 	atomic.StoreUint64(&errs, 0)
 	atomic.StoreUint64(&shed, 0)
 
-	statsWaiter.Wait()
-	close(endChan)
-	close(pauseChan)
+	logger.Println("Finishing stats collection...")
+	endStatsChan <- struct{}{} // send signal to finish stats worker.
+	statsWaiter.Wait()         // wait for stats worker to do its stuff.
+	close(endStatsChan)
+	logger.Printf("Done. Results can be found at %s\n", *resultsPath)
+	logger.Println("Load test finished successfully.")
 }
 
-func worker(pause chan float64, end chan struct{}) {
+func worker(pause chan float64, end chan struct{}, wg *sync.WaitGroup) {
+	defer wg.Done()
 	durSecs := (*duration).Seconds()
 	numReq := (*qps * int(durSecs)) / *workers
 	if numReq == 0 {
-		log.Fatalf("To few requests per worker, please increase the qps or decrease the number of workers")
+		logger.Fatalf("To few requests per worker, please increase the qps or decrease the number of workers")
 	}
 
 	client, err := elastic.NewClient(elastic.SetURL(*addr))
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 	ctx := context.Background()
 	fire := time.Tick(time.Duration((durSecs*float64(1e9))/float64(numReq)) * time.Nanosecond)
 	for i := 0; i < numReq; i++ {
 		select {
 		case <-fire:
-			sendRequest(ctx, client)
+			sendRequest(ctx, client, pause)
 		case pt := <-pause:
 			time.Sleep(time.Duration(pt*1000000000) * time.Nanosecond)
 			fmt.Printf("Sleeping: %v\n", time.Duration(pt*1000000000)*time.Nanosecond)
@@ -101,7 +112,7 @@ func worker(pause chan float64, end chan struct{}) {
 	}
 }
 
-func sendRequest(ctx context.Context, client *elastic.Client) {
+func sendRequest(ctx context.Context, client *elastic.Client, pauseChan chan float64) {
 	atomic.AddUint64(&reqs, 1)
 	q := elastic.NewTermQuery("text", "America")
 	resp, err := client.Search().Index(*index).Query(q).Do(ctx)
@@ -129,18 +140,18 @@ func sendRequest(ctx context.Context, client *elastic.Client) {
 	}
 }
 
-func statsCollector(end chan struct{}) {
-	defer statsWaiter.Done()
+func statsCollector(end chan struct{}, wg *sync.WaitGroup) {
+	defer wg.Done()
 
 	client, err := elastic.NewClient(elastic.SetURL(*addr))
 	if err != nil {
-		log.Fatalf("Error creating ES stats client: %q", err)
+		logger.Fatalf("Error creating ES stats client: %q", err)
 	}
 
 	ctx := context.Background()
 	r, err := client.Count(*index).Do(ctx)
 	if err != nil {
-		log.Fatalf("Could not infer the number of shards. Err: %q", err)
+		logger.Fatalf("Could not infer the number of shards. Err: %q", err)
 	}
 	shards := r.Shards.Successful
 
@@ -168,7 +179,7 @@ func statsCollector(end chan struct{}) {
 		s := client.NodesStats().Metric("jvm", "indices", "process")
 		resp, err := s.Do(ctx)
 		if err != nil {
-			fmt.Printf("%q\n", err)
+			logger.Printf("%q\n", err)
 		}
 		var ns *elastic.NodesStatsNode
 		for _, ns = range resp.Nodes {
@@ -197,7 +208,7 @@ func statsCollector(end chan struct{}) {
 func newFile(fName string) *os.File {
 	f, err := os.Create(filepath.Join(*resultsPath, fName+"_"+*expID+".csv"))
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 	return f
 }
