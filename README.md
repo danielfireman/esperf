@@ -3,6 +3,7 @@
 Is a multiplatform command line tool to load test and collect metrics from your [ElasticSearch](https://github.com/elastic/elasticsearch) deployment. It provides:
 
 * Ability to query terms from a dictionary of words
+* Ability to properly handle 503 or 429 http responde codes, respecting the delay suggested by the Retry-After response header field.
 * Send load following a constant or Poisson distribution
 * Collect the following metrics:
      * Overall CPU load
