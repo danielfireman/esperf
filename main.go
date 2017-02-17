@@ -32,6 +32,7 @@ var (
 	duration    = flag.Duration("duration", 30*time.Second, "Time sending load to the server.")
 	cint        = flag.Duration("cint", 5*time.Second, "Interval between metrics collection.")
 	load        = flag.String("load", "const:10", "Describes the load impressed on the server")
+	dict        = flag.String("dict", "small_dict.txt", "Dictionary of terms to use. One term per line.")
 )
 
 const (
@@ -172,9 +173,12 @@ func main() {
 
 	client, err := elastic.NewClient(
 		elastic.SetErrorLog(logger),
+		elastic.SetInfoLog(logger),
+		elastic.SetTraceLog(logger),
 		elastic.SetURL(*addr),
 		elastic.SetHealthcheck(false),
 		elastic.SetSniff(false),
+		elastic.SetHealthcheck(false),
 		elastic.SetMaxRetries(5),
 		elastic.SetHttpClient(&http.Client{
 			Timeout: 500 * time.Millisecond,
@@ -189,6 +193,21 @@ func main() {
 		logger.Fatal(err)
 	}
 
+	if *dict == "" {
+		logger.Fatalf("Dictionary file path can not be empty. Please set --dict flag.")
+	}
+
+	dictF, err := os.Open(*dict)
+	if err != nil {
+		logger.Fatal(err)
+	}
+	var terms []string
+	scanner := bufio.NewScanner(dictF)
+	for scanner.Scan() {
+		terms = append(terms, scanner.Text())
+	}
+	logger.Printf("Terms dictionary successfully scanned. Loaded %d terms.", len(terms))
+
 	endStatsChan := make(chan struct{})
 	var statsWaiter sync.WaitGroup
 	statsWaiter.Add(1)
@@ -200,7 +219,7 @@ func main() {
 	var loadWaiter sync.WaitGroup
 	for i := 0; i < *workers; i++ {
 		loadWaiter.Add(1)
-		go worker(client, pauseLoadChan, endLoadChan, &loadWaiter, gen)
+		go worker(client, pauseLoadChan, endLoadChan, &loadWaiter, gen, terms)
 	}
 	logger.Printf("%d load workers have started. Waiting for their hard work...\n", *workers)
 
@@ -228,14 +247,21 @@ func main() {
 	logger.Println("Load test finished successfully.")
 }
 
-func worker(client *elastic.Client, pause chan float64, end chan struct{}, wg *sync.WaitGroup, gen LoadGen) {
+func worker(client *elastic.Client, pause chan float64, end chan struct{}, wg *sync.WaitGroup, gen LoadGen, terms []string) {
 	defer wg.Done()
 	ctx := context.Background()
 	fire := gen.GetTicker()
+	// Avoiding default random synchronization block. Each worker can have its own random source.
+	// http://blog.sgmansfield.com/2016/01/the-hidden-dangers-of-default-rand/
+	nTerms := len(terms)
+	// NOTE: Tried to generate a random number per request and that damages performance in high load tests.
+	// Modulo operation is a way cheaper than the random number generator, even if we get rid of the synchronization
+	// lock from the default random generator.
+	start := rand.New(rand.NewSource(time.Now().Unix())).Intn(nTerms)
 	for {
 		select {
 		case <-fire:
-			sendRequest(ctx, client, pause)
+			sendRequest(ctx, client, pause, terms[start%nTerms])
 		case pt := <-pause:
 			time.Sleep(time.Duration(pt*1000000000) * time.Nanosecond)
 			fmt.Printf("Sleeping: %v\n", time.Duration(pt*1000000000)*time.Nanosecond)
@@ -247,9 +273,9 @@ func worker(client *elastic.Client, pause chan float64, end chan struct{}, wg *s
 	}
 }
 
-func sendRequest(ctx context.Context, client *elastic.Client, pauseChan chan float64) {
+func sendRequest(ctx context.Context, client *elastic.Client, pauseChan chan float64, term string) {
 	atomic.AddUint64(&reqs, 1)
-	q := elastic.NewTermQuery("text", "America")
+	q := elastic.NewTermQuery("text", term)
 	resp, err := client.Search().Index(*index).Query(q).Do(ctx)
 	if err != nil {
 		atomic.AddUint64(&errs, 1)
@@ -334,7 +360,6 @@ func statsCollector(client *elastic.Client, end chan struct{}, wg *sync.WaitGrou
 			return
 		}
 	}
-
 }
 
 func newFile(fName string) *os.File {
