@@ -85,7 +85,7 @@ func (g *PoissonLoadGen) GetTicker() <-chan struct{} {
 			// NOTE: Implementation follows:
 			// http://preshing.com/20111007/how-to-generate-random-timings-for-a-poisson-process/
 			c <- struct{}{}
-			time.Sleep(time.Duration(1e9*(-math.Log(1.0-r.Float64())/g.Lambda)) * time.Nanosecond)
+			time.Sleep(time.Duration(-math.Log(1.0-r.Float64())/g.Lambda) * time.Second)
 		}
 	}()
 	return c
