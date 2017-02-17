@@ -7,10 +7,14 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"math"
+	"math/rand"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -21,14 +25,98 @@ import (
 
 var (
 	workers     = flag.Int("c", 50, "Number of concurrent workers.")
-	qps         = flag.Int("qps", 10, "Number of requests per second impressed on the server.")
 	addr        = flag.String("addr", "http://localhost:9200", "Elastic search HTTP address")
 	index       = flag.String("index", "wikipediax", "Index to perform queries")
 	resultsPath = flag.String("results_path", "~/results", "")
 	expID       = flag.String("exp_id", "1", "")
 	duration    = flag.Duration("duration", 30*time.Second, "Time sending load to the server.")
 	cint        = flag.Duration("cint", 5*time.Second, "Interval between metrics collection.")
+	load        = flag.String("load", "const:10", "Describes the load impressed on the server")
 )
+
+const (
+	loadDefSep     = ":"
+	constLoadDef   = "const"
+	poissonLoadDef = "poisson"
+)
+
+type LoadGen interface {
+	GetTicker() <-chan struct{}
+}
+
+type ConstLoadGen struct {
+	Interval time.Duration
+}
+
+func (g *ConstLoadGen) GetTicker() <-chan struct{} {
+	c := make(chan struct{})
+	go func() {
+		for {
+			c <- struct{}{}
+			time.Sleep(g.Interval)
+		}
+	}()
+	return c
+}
+
+func NewConstLoadTicker(params []string) (LoadGen, error) {
+	qps, err := strconv.Atoi(params[0])
+	if err != nil {
+		return nil, err
+	}
+	numReq := (qps * int((*duration).Seconds())) / *workers
+	if numReq == 0 {
+		return nil, fmt.Errorf("To few requests per worker, please increase the qps or decrease the number of workers")
+	}
+	return &ConstLoadGen{time.Duration(float64((*duration).Nanoseconds())/float64(numReq)) * time.Nanosecond}, nil
+}
+
+type PoissonLoadGen struct {
+	// The rate parameter λ is a measure of frequency: the average rate of events (in this case, messages sent)
+	// per unit of time (in this case, seconds).
+	Lambda float64
+}
+
+func (g *PoissonLoadGen) GetTicker() <-chan struct{} {
+	c := make(chan struct{})
+	go func() {
+		r := rand.New(rand.NewSource(time.Now().UnixNano()))
+		for {
+			// NOTE: Implementation follows:
+			// http://preshing.com/20111007/how-to-generate-random-timings-for-a-poisson-process/
+			c <- struct{}{}
+			time.Sleep(time.Duration(1e9*(-math.Log(1.0-r.Float64())/g.Lambda)) * time.Nanosecond)
+		}
+	}()
+	return c
+}
+
+func NewPoissonLoadTicker(params []string) (LoadGen, error) {
+	qps, err := strconv.Atoi(params[0])
+	if err != nil {
+		return nil, err
+	}
+	numReq := (qps * int((*duration).Seconds())) / *workers
+	if numReq == 0 {
+		return nil, fmt.Errorf("To few requests per worker, please increase the qps or decrease the number of workers")
+	}
+	return &PoissonLoadGen{float64(numReq) / (*duration).Seconds()}, nil
+}
+
+func ParseLoadDef(def string) (LoadGen, error) {
+	p := strings.Split(def, loadDefSep)
+	if len(p) < 1 {
+		return nil, fmt.Errorf("Invalid load definition:%s", def)
+	}
+	switch p[0] {
+	case constLoadDef:
+		return NewConstLoadTicker(p[1:])
+	case poissonLoadDef:
+		return NewPoissonLoadTicker(p[1:])
+	default:
+		return nil, fmt.Errorf("Invalid load type:%s", p[0])
+	}
+}
 
 type Snapshot struct {
 	td tdigest.TDigest
@@ -76,18 +164,35 @@ var (
 
 func main() {
 	flag.Parse()
-	logger.Printf("Starting sending load: #Workers:%d GlobalQPS:%d Duration:%v\n", *workers, *qps, *duration)
+	gen, err := ParseLoadDef(*load)
+	if err != nil {
+		logger.Fatalf(err.Error())
+	}
+	logger.Printf("Starting sending load: #Workers:%d LoadDef:%s Duration:%v\n", *workers, *load, *duration)
 
-	elastic.SetErrorLog(logger)
-	elastic.SetTraceLog(logger)
-	elastic.SetInfoLog(logger)
-	elastic.SetMaxRetries(0)
-	elastic.SetSniff(false)
+	client, err := elastic.NewClient(
+		elastic.SetErrorLog(logger),
+		elastic.SetURL(*addr),
+		elastic.SetHealthcheck(false),
+		elastic.SetSniff(false),
+		elastic.SetMaxRetries(5),
+		elastic.SetHttpClient(&http.Client{
+			Timeout: 500 * time.Millisecond,
+			Transport: &http.Transport{
+				Dial: (&net.Dialer{
+					Timeout:   500 * time.Millisecond,
+					KeepAlive: 500 * time.Millisecond,
+				}).Dial,
+			},
+		}))
+	if err != nil {
+		logger.Fatal(err)
+	}
 
 	endStatsChan := make(chan struct{})
 	var statsWaiter sync.WaitGroup
 	statsWaiter.Add(1)
-	go statsCollector(endStatsChan, &statsWaiter)
+	go statsCollector(client, endStatsChan, &statsWaiter)
 	logger.Println("Stats collector started.")
 
 	endLoadChan := make(chan struct{}, *workers)
@@ -95,7 +200,7 @@ func main() {
 	var loadWaiter sync.WaitGroup
 	for i := 0; i < *workers; i++ {
 		loadWaiter.Add(1)
-		go worker(pauseLoadChan, endLoadChan, &loadWaiter)
+		go worker(client, pauseLoadChan, endLoadChan, &loadWaiter, gen)
 	}
 	logger.Printf("%d load workers have started. Waiting for their hard work...\n", *workers)
 
@@ -123,20 +228,11 @@ func main() {
 	logger.Println("Load test finished successfully.")
 }
 
-func worker(pause chan float64, end chan struct{}, wg *sync.WaitGroup) {
+func worker(client *elastic.Client, pause chan float64, end chan struct{}, wg *sync.WaitGroup, gen LoadGen) {
 	defer wg.Done()
-	numReq := (*qps * int((*duration).Seconds())) / *workers
-	if numReq == 0 {
-		logger.Fatalf("To few requests per worker, please increase the qps or decrease the number of workers")
-	}
-
-	client, err := elastic.NewClient(elastic.SetURL(*addr))
-	if err != nil {
-		logger.Fatal(err)
-	}
 	ctx := context.Background()
-	fire := time.Tick(time.Duration(float64((*duration).Nanoseconds())/float64(numReq)) * time.Nanosecond)
-	for i := 0; i < numReq; i++ {
+	fire := gen.GetTicker()
+	for {
 		select {
 		case <-fire:
 			sendRequest(ctx, client, pause)
@@ -180,14 +276,8 @@ func sendRequest(ctx context.Context, client *elastic.Client, pauseChan chan flo
 	}
 }
 
-func statsCollector(end chan struct{}, wg *sync.WaitGroup) {
+func statsCollector(client *elastic.Client, end chan struct{}, wg *sync.WaitGroup) {
 	defer wg.Done()
-
-	client, err := elastic.NewClient(elastic.SetURL(*addr))
-	if err != nil {
-		logger.Fatalf("Error creating ES stats client: %q", err)
-	}
-	ctx := context.Background()
 
 	mF := newFile("mem.pools")
 	defer mF.Close()
@@ -214,10 +304,9 @@ func statsCollector(end chan struct{}, wg *sync.WaitGroup) {
 	latency := csv.NewWriter(bufio.NewWriter(lF))
 	writeLatencyHeader(latency)
 
-	nodeStatsService := client.NodesStats().Metric("jvm", "indices", "process")
-
 	collect := func() {
-		resp, err := nodeStatsService.Do(ctx)
+		nss := client.NodesStats().Metric("jvm", "indices", "process")
+		resp, err := nss.Do(context.Background())
 		if err != nil {
 			logger.Printf("%q\n", err)
 			return
