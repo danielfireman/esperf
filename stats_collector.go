@@ -86,7 +86,7 @@ func newFile(fName string) *os.File {
 }
 
 func writeLatencyHeader(w *csv.Writer) {
-	w.Write([]string{"ts", "50perc", "90perc", "99perc", "999perc"})
+	w.Write([]string{"ts", "p50", "p90", "p99", "p999"})
 	w.Flush()
 }
 
