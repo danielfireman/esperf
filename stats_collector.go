@@ -52,7 +52,7 @@ func statsCollector(client *elastic.Client, end chan struct{}, wg *sync.WaitGrou
 		var ns *elastic.NodesStatsNode
 		for _, ns = range resp.Nodes {
 		}
-		ts := ns.JVM.Timestamp
+		ts := time.Now().UnixNano() / 1000000
 		s, count := respTimeStats.Snapshot()
 		writeMem(ns, memPools, ts)
 		writeGC(ns, gc, ts)

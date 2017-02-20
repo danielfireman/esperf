@@ -46,13 +46,11 @@ func main() {
 
 	client, err := elastic.NewClient(
 		elastic.SetErrorLog(logger),
-		elastic.SetInfoLog(logger),
-		elastic.SetTraceLog(logger),
 		elastic.SetURL(*addr),
 		elastic.SetHealthcheck(false),
 		elastic.SetSniff(false),
 		elastic.SetHealthcheck(false),
-		elastic.SetMaxRetries(5),
+		elastic.SetMaxRetries(0),
 		elastic.SetHttpClient(&http.Client{
 			Timeout: 500 * time.Millisecond,
 			Transport: &http.Transport{
