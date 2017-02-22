@@ -52,11 +52,11 @@ func main() {
 		elastic.SetHealthcheck(false),
 		elastic.SetMaxRetries(0),
 		elastic.SetHttpClient(&http.Client{
-			Timeout: 500 * time.Millisecond,
+			Timeout: 1 * time.Second,
 			Transport: &http.Transport{
 				Dial: (&net.Dialer{
-					Timeout:   500 * time.Millisecond,
-					KeepAlive: 500 * time.Millisecond,
+					Timeout:   1 * time.Second,
+					KeepAlive: 1 * time.Second,
 				}).Dial,
 			},
 		}))

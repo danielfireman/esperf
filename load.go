@@ -39,12 +39,11 @@ func NewConstLoadGen(params []string) (LoadGen, error) {
 	if err != nil {
 		return nil, err
 	}
-	numReq := (qps * int((*duration).Seconds())) / *workers
-	if numReq == 0 {
+	req := qps / *workers // Number of requests per worker per second.
+	if req == 0 {
 		return nil, fmt.Errorf("To few requests per worker, please increase the qps or decrease the number of workers")
 	}
-	// TODO(danielfireman): Make duration a parameter.
-	return &ConstLoadGen{time.Duration(float64((*duration).Nanoseconds())/float64(numReq)) * time.Nanosecond}, nil
+	return &ConstLoadGen{time.Duration(time.Second.Nanoseconds() / int64(req))}, nil
 }
 
 type PoissonLoadGen struct {
