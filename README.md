@@ -11,6 +11,8 @@ Is a multiplatform command line tool to load test and collect metrics from your 
      * Latency 50, 90, 99, 99.9 percentiles
      * Memory pools usage (broken  by young, survivor and old)
      * Throughput
+     
+**Disclaimer: a lot in flux.** 
 
 ## Simple Usage
 
@@ -19,9 +21,8 @@ $ go get github.com/danielfireman/esperf
 $ echo "word" > tiny_dict.txt
 $ mkdir results
 $ ./esperf --addr http://{ES_SERVER_IP}:9200 \
---load poisson:100 \
+--load poisson:50 \
 --duration 1m \
---cint 1s \
 --results_path=$PWD/results \
 --dict=$PWD/tiny_dict.txt
 ```
