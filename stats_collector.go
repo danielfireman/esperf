@@ -27,38 +27,46 @@ func statsCollector(client *elastic.Client, end chan struct{}, wg *sync.WaitGrou
 	gc := csv.NewWriter(bufio.NewWriter(gcF))
 	writeGCHeader(gc)
 
-	tpF := newFile("tp")
-	defer tpF.Close()
-	tp := csv.NewWriter(bufio.NewWriter(tpF))
-	writeTpHeader(tp)
-
 	cpuF := newFile("cpu")
 	defer cpuF.Close()
 	cpu := csv.NewWriter(bufio.NewWriter(cpuF))
 	writeCPUHeader(cpu)
 
-	lF := newFile("latency")
-	defer lF.Close()
-	latency := csv.NewWriter(bufio.NewWriter(lF))
-	writeLatencyHeader(latency)
+	tpFs := make(map[int]*os.File)
+	tpWriters := make(map[int]*csv.Writer)
+	defer func() {
+		for _, f := range tpFs {
+			f.Close()
+		}
+	}()
+
+	latencyFs := make(map[int]*os.File)
+	latencyWriters := make(map[int]*csv.Writer)
+	defer func() {
+		for _, f := range latencyFs {
+			f.Close()
+		}
+	}()
 
 	collect := func() {
-		nss := client.NodesStats().Metric("jvm", "indices", "process")
+		nss := client.NodesStats().Metric("jvm", "process")
 		resp, err := nss.Do(context.Background())
 		if err != nil {
 			logger.Printf("%q\n", err)
 			return
 		}
+		ts := time.Now().UnixNano() / 1000000
+
 		var ns *elastic.NodesStatsNode
 		for _, ns = range resp.Nodes {
 		}
-		ts := time.Now().UnixNano() / 1000000
-		s, count := respTimeStats.Snapshot()
 		writeMem(ns, memPools, ts)
 		writeGC(ns, gc, ts)
-		writeTp(tp, ts, count)
 		writeCPU(ns, cpu, ts)
-		writeLatency(s, latency, ts)
+
+		s, count := respTimeStats.Snapshot()
+		writeTp(tpFs, tpWriters, ts, count)
+		writeLatency(latencyFs, latencyWriters, ts, s)
 	}
 
 	// TODO(danielfireman): Make cint a function parameter.
@@ -78,38 +86,72 @@ func statsCollector(client *elastic.Client, end chan struct{}, wg *sync.WaitGrou
 func newFile(fName string) *os.File {
 	// TODO(danielfireman): Make resultsPath a functionParamter
 	// TODO(danielfireman): Make expID a functionParamter
-	f, err := os.Create(filepath.Join(*resultsPath, fName+"_"+*expID+".csv"))
+	f, err := os.Create(filepath.Join(*resultsPath, fName + "_" + *expID + ".csv"))
 	if err != nil {
 		logger.Fatal(err)
 	}
 	return f
 }
 
-func writeLatencyHeader(w *csv.Writer) {
-	w.Write([]string{"ts", "p50", "p90", "p99", "p999"})
-	w.Flush()
+func writeLatency(fMap map[int]*os.File, wMap map[int]*csv.Writer, ts int64, s *Snapshot) {
+	for code, quantiles := range s.Quantile(0.5, 0.9, 0.99, 0.999) {
+		f, ok := fMap[code]
+		if !ok {
+			f = newFile(fmt.Sprintf("latency.%d", code))
+			fMap[code] = f
+		}
+		w, ok := wMap[code]
+		if !ok {
+			w = csv.NewWriter(bufio.NewWriter(f))
+			if err := w.Write([]string{"ts", "p50", "p90", "p99", "p999"}); err != nil {
+				logger.Fatal(err)
+			}
+			w.Flush()
+			if err := w.Error(); err != nil {
+				logger.Fatal(err)
+			}
+			wMap[code] = w
+		}
+		w.Write([]string{
+			strconv.FormatInt(ts, 10),
+			fmt.Sprintf("%.2f", float64(quantiles[0])),
+			fmt.Sprintf("%.2f", float64(quantiles[1])),
+			fmt.Sprintf("%.2f", float64(quantiles[2])),
+			fmt.Sprintf("%.2f", float64(quantiles[3]))})
+		w.Flush()
+		if err := w.Error(); err != nil {
+			logger.Fatal(err)
+		}
+	}
 }
 
-func writeLatency(s *Snapshot, w *csv.Writer, ts int64) {
-	w.Write([]string{
-		strconv.FormatInt(ts, 10),
-		fmt.Sprintf("%.2f", float64(s.Quantile(0.5))),
-		fmt.Sprintf("%.2f", float64(s.Quantile(0.9))),
-		fmt.Sprintf("%.2f", float64(s.Quantile(0.99))),
-		fmt.Sprintf("%.2f", float64(s.Quantile(0.999)))})
-	w.Flush()
-}
-
-func writeTpHeader(w *csv.Writer) {
-	w.Write([]string{"ts", "count"})
-	w.Flush()
-}
-
-func writeTp(w *csv.Writer, ts int64, count int64) {
-	w.Write([]string{
-		strconv.FormatInt(ts, 10),
-		strconv.FormatInt(count, 10)})
-	w.Flush()
+func writeTp(fMap map[int]*os.File, wMap map[int]*csv.Writer, ts int64, countMap map[int]int64) {
+	for code, count := range countMap {
+		f, ok := fMap[code]
+		if !ok {
+			f = newFile(fmt.Sprintf("tp.%d", code))
+			fMap[code] = f
+		}
+		w, ok := wMap[code]
+		if !ok {
+			w = csv.NewWriter(bufio.NewWriter(f))
+			wMap[code] = w
+			if err := w.Write([]string{"ts", "count"}); err != nil {
+				logger.Fatal(err)
+			}
+			w.Flush()
+			if err := w.Error(); err != nil {
+				logger.Fatal(err)
+			}
+		}
+		if err := w.Write([]string{strconv.FormatInt(ts, 10),  strconv.FormatInt(count, 10)}); err != nil {
+			logger.Fatal(err)
+		}
+		w.Flush()
+		if err := w.Error(); err != nil {
+			logger.Fatal(err)
+		}
+	}
 }
 
 func writeGCHeader(w *csv.Writer) {

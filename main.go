@@ -26,13 +26,13 @@ var (
 	cint = flag.Duration("cint", 5 * time.Second, "Interval between metrics collection.")
 	load = flag.String("load", "const:10", "Describes the load impressed on the server")
 	dict = flag.String("dict", "small_dict.txt", "Dictionary of terms to use. One term per line.")
-	timeout = flag.String("timeout", 5 * time.Second, "Timeout to be used in connections to ES.")
+	timeout = flag.Duration("timeout", 5 * time.Second, "Timeout to be used in connections to ES.")
 )
 
 var (
 	succs, errs, reqs, shed uint64
 	logger = log.New(os.Stdout, "", log.LstdFlags | log.Lshortfile)
-	respTimeStats = &ResponseTimeStats{}
+	respTimeStats = NewResponseTimeStats()
 )
 
 func main() {
@@ -142,7 +142,7 @@ func sendRequest(client *elastic.Client, pauseChan chan float64, term string) {
 	switch {
 	case s == http.StatusOK:
 		atomic.AddUint64(&succs, 1)
-		respTimeStats.Record(resp.TookInMillis)
+		respTimeStats.Record(s, resp.TookInMillis)
 	case s == http.StatusTooManyRequests || s == http.StatusServiceUnavailable:
 		atomic.AddUint64(&shed, 1)
 		ra := resp.Header.Get("Retry-After")

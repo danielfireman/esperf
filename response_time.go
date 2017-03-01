@@ -6,40 +6,69 @@ import (
 	"github.com/spenczar/tdigest"
 )
 
-type Snapshot struct {
-	td tdigest.TDigest
+func newSnapshot(values map[int][]int64) *Snapshot {
+	ret := make(map[int]tdigest.TDigest)
+	for code, values := range values {
+		td := tdigest.New()
+		for _, v := range values {
+			td.Add(float64(v), 1)
+		}
+		ret[code] = td
+	}
+	return &Snapshot{ret}
 }
 
-func (s *Snapshot) Quantile(q float64) float64 {
-	return s.td.Quantile(q)
+type Snapshot struct {
+	estimators map[int]tdigest.TDigest
+}
+
+// Estimate the qth quantile value of the snapshot. The input value of
+// q should be in the range [0.0, 1.0]; if  it is outside that range, it will
+// be clipped into it automatically.
+func (s *Snapshot) Quantile(quantiles ...float64) map[int][]float64 {
+	ret := make(map[int][]float64)
+	for code, e := range s.estimators {
+		for _, q := range quantiles {
+			ret[code] = append(ret[code], e.Quantile(q))
+		}
+	}
+	return ret
+}
+
+func NewResponseTimeStats() *ResponseTimeStats {
+	return &ResponseTimeStats{buff:make(map[int][]int64), count:make(map[int]int64)}
 }
 
 type ResponseTimeStats struct {
 	sync.Mutex
-	count int64
+	count map[int]int64
 	td    tdigest.TDigest
-	buff  []int64
+	buff  map[int][]int64
 }
 
-func (s *ResponseTimeStats) Record(v int64) {
+func (s *ResponseTimeStats) Record(code int, v int64) {
 	s.Lock()
 	defer s.Unlock()
-	s.buff = append(s.buff, v)
-	s.count++
+	s.buff[code] = append(s.buff[code], v)
+	s.count[code]++
 }
 
-func (s *ResponseTimeStats) Snapshot() (*Snapshot, int64) {
+func (s *ResponseTimeStats) Snapshot() (*Snapshot, map[int]int64) {
 	s.Lock()
-	auxBuff := make([]int64, len(s.buff))
-	copy(auxBuff, s.buff)
-	s.buff = nil
-	count := s.count
-	s.Unlock()
-
-	td := tdigest.New()
-	for _, v := range auxBuff {
-		td.Add(float64(v), 1)
+	// Snapshotting buffers. Need to keep this race region as
+	// small as possible.
+	vSnapshot := make(map[int][]int64)
+	for code,buff := range s.buff {
+		b := make([]int64, len(buff))
+		copy(b, buff)
+		vSnapshot[code] = b
 	}
-
-	return &Snapshot{td}, count
+	s.buff = make(map[int][]int64)
+	cSnapshot := make(map[int]int64)
+	for code,c := range s.count {
+		cSnapshot[code] = c
+	}
+	s.count = make(map[int]int64)
+	s.Unlock()
+	return newSnapshot(vSnapshot), cSnapshot
 }
