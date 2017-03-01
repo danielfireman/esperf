@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	loadDefSep = ":"
-	constLoadDef = "const"
+	loadDefSep     = ":"
+	constLoadDef   = "const"
 	poissonLoadDef = "poisson"
 )
 
@@ -52,7 +52,7 @@ func NewConstLoadGen(params []string) (LoadGen, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &ConstLoadGen{Qps:qps}, nil
+	return &ConstLoadGen{Qps: qps}, nil
 }
 
 type PoissonLoadGen struct {
@@ -76,12 +76,12 @@ func (g *PoissonLoadGen) Start() LoadGen {
 			// Non-blocking ticking on c.
 			// NOTE: Implementation follows:
 			// http://preshing.com/20111007/how-to-generate-random-timings-for-a-poisson-process/
-			select{
-				case g.c <- struct{}{}:
-				default:
+			select {
+			case g.c <- struct{}{}:
+			default:
 			}
 
-			time.Sleep(time.Duration((-math.Log(1.0 - r.Float64()) / float64(g.Lambda)) * 1e9))
+			time.Sleep(time.Duration((-math.Log(1.0-r.Float64()) / float64(g.Lambda)) * 1e9))
 		}
 	}()
 	return g
@@ -92,7 +92,7 @@ func NewPoissonLoadGen(params []string) (LoadGen, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &PoissonLoadGen{Lambda:qps}, nil
+	return &PoissonLoadGen{Lambda: qps}, nil
 }
 
 func NewLoadGen(def string) (LoadGen, error) {

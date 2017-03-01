@@ -86,7 +86,7 @@ func statsCollector(client *elastic.Client, end chan struct{}, wg *sync.WaitGrou
 func newFile(fName string) *os.File {
 	// TODO(danielfireman): Make resultsPath a functionParamter
 	// TODO(danielfireman): Make expID a functionParamter
-	f, err := os.Create(filepath.Join(*resultsPath, fName + "_" + *expID + ".csv"))
+	f, err := os.Create(filepath.Join(*resultsPath, fName+"_"+*expID+".csv"))
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -144,7 +144,7 @@ func writeTp(fMap map[int]*os.File, wMap map[int]*csv.Writer, ts int64, countMap
 				logger.Fatal(err)
 			}
 		}
-		if err := w.Write([]string{strconv.FormatInt(ts, 10),  strconv.FormatInt(count, 10)}); err != nil {
+		if err := w.Write([]string{strconv.FormatInt(ts, 10), strconv.FormatInt(count, 10)}); err != nil {
 			logger.Fatal(err)
 		}
 		w.Flush()

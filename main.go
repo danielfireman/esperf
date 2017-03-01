@@ -18,21 +18,21 @@ import (
 )
 
 var (
-	addr = flag.String("addr", "http://localhost:9200", "Elastic search HTTP address")
-	index = flag.String("index", "wikipediax", "Index to perform queries")
+	addr        = flag.String("addr", "http://localhost:9200", "Elastic search HTTP address")
+	index       = flag.String("index", "wikipediax", "Index to perform queries")
 	resultsPath = flag.String("results_path", "~/results", "")
-	expID = flag.String("exp_id", "1", "")
-	duration = flag.Duration("duration", 30 * time.Second, "Time sending load to the server.")
-	cint = flag.Duration("cint", 5 * time.Second, "Interval between metrics collection.")
-	load = flag.String("load", "const:10", "Describes the load impressed on the server")
-	dict = flag.String("dict", "small_dict.txt", "Dictionary of terms to use. One term per line.")
-	timeout = flag.Duration("timeout", 5 * time.Second, "Timeout to be used in connections to ES.")
+	expID       = flag.String("exp_id", "1", "")
+	duration    = flag.Duration("duration", 30*time.Second, "Time sending load to the server.")
+	cint        = flag.Duration("cint", 5*time.Second, "Interval between metrics collection.")
+	load        = flag.String("load", "const:10", "Describes the load impressed on the server")
+	dict        = flag.String("dict", "small_dict.txt", "Dictionary of terms to use. One term per line.")
+	timeout     = flag.Duration("timeout", 5*time.Second, "Timeout to be used in connections to ES.")
 )
 
 var (
 	succs, errs, reqs, shed uint64
-	logger = log.New(os.Stdout, "", log.LstdFlags | log.Lshortfile)
-	respTimeStats = NewResponseTimeStats()
+	logger                  = log.New(os.Stdout, "", log.LstdFlags|log.Lshortfile)
+	respTimeStats           = NewResponseTimeStats()
 )
 
 func main() {
@@ -96,10 +96,10 @@ func main() {
 		for i := 0; ; i++ {
 			select {
 			case <-fire:
-				go sendRequest(client, pauseLoadChan, terms[i % nTerms])
+				go sendRequest(client, pauseLoadChan, terms[i%nTerms])
 			case pt := <-pauseLoadChan:
-				time.Sleep(time.Duration(pt * 1e9) * time.Nanosecond)
-				fmt.Printf("Sleeping: %v\n", time.Duration(pt * 1000000000) * time.Nanosecond)
+				time.Sleep(time.Duration(pt*1e9) * time.Nanosecond)
+				fmt.Printf("Sleeping: %v\n", time.Duration(pt*1000000000)*time.Nanosecond)
 				for range pauseLoadChan {
 				} // Emptying pause channel before continue.
 			case <-endLoadChan:
@@ -109,14 +109,14 @@ func main() {
 	}()
 	logger.Printf("Worker has started. Waiting for their hard work...\n")
 	start := time.Now()
-	gen.Start()  // Start firing load.
+	gen.Start() // Start firing load.
 	<-time.Tick(*duration)
 	endLoadChan <- struct{}{}
 	close(endLoadChan)
 	close(pauseLoadChan)
 	dur := time.Now().Sub(start).Seconds()
 
-	logger.Printf("Done. AVGQPS:%.2f #REQS:%d #SUCC:%d #ERR:%d #SHED:%d AVGTP:%.2f", float64(reqs) / dur, reqs, succs, errs, shed, float64(succs) / dur)
+	logger.Printf("Done. AVGQPS:%.2f #REQS:%d #SUCC:%d #ERR:%d #SHED:%d AVGTP:%.2f", float64(reqs)/dur, reqs, succs, errs, shed, float64(succs)/dur)
 	atomic.StoreUint64(&reqs, 0)
 	atomic.StoreUint64(&succs, 0)
 	atomic.StoreUint64(&errs, 0)

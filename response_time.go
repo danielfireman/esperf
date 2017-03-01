@@ -36,7 +36,7 @@ func (s *Snapshot) Quantile(quantiles ...float64) map[int][]float64 {
 }
 
 func NewResponseTimeStats() *ResponseTimeStats {
-	return &ResponseTimeStats{buff:make(map[int][]int64), count:make(map[int]int64)}
+	return &ResponseTimeStats{buff: make(map[int][]int64), count: make(map[int]int64)}
 }
 
 type ResponseTimeStats struct {
@@ -58,14 +58,14 @@ func (s *ResponseTimeStats) Snapshot() (*Snapshot, map[int]int64) {
 	// Snapshotting buffers. Need to keep this race region as
 	// small as possible.
 	vSnapshot := make(map[int][]int64)
-	for code,buff := range s.buff {
+	for code, buff := range s.buff {
 		b := make([]int64, len(buff))
 		copy(b, buff)
 		vSnapshot[code] = b
 	}
 	s.buff = make(map[int][]int64)
 	cSnapshot := make(map[int]int64)
-	for code,c := range s.count {
+	for code, c := range s.count {
 		cSnapshot[code] = c
 	}
 	s.count = make(map[int]int64)
