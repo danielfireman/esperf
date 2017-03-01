@@ -3,19 +3,18 @@ package main
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"encoding/json"
-	"path/filepath"
 
 	"gopkg.in/olivere/elastic.v5"
 )
@@ -104,12 +103,18 @@ func main() {
 		CollectInterval: *cint,
 		Load:            *load,
 	}
+	b, err := json.MarshalIndent(config, "", "\t")
+	if err != nil {
+		logger.Fatal(err)
+	}
 	cFile, err := os.Create(filepath.Join(*resultsPath, "config_"+*expID+".json"))
 	if err != nil {
 		logger.Fatal(err)
 	}
-	enc := json.NewEncoder(cFile)
-	if err := enc.Encode(&config); err != nil {
+	if _, err := cFile.Write(b); err != nil {
+		logger.Fatal(err)
+	}
+	if err := cFile.Close(); err != nil {
 		logger.Fatal(err)
 	}
 	logger.Printf("Config file written to: %s", cFile.Name())
