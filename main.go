@@ -14,6 +14,9 @@ import (
 	"sync/atomic"
 	"time"
 
+	"encoding/json"
+	"path/filepath"
+
 	"gopkg.in/olivere/elastic.v5"
 )
 
@@ -34,6 +37,18 @@ var (
 	logger                  = log.New(os.Stdout, "", log.LstdFlags|log.Lshortfile)
 	respTimeStats           = NewResponseTimeStats()
 )
+
+type Config struct {
+	Dict            string        `json:"dict"`
+	Index           string        `json:"index"`
+	Addr            string        `json:"addr"`
+	ResultsPath     string        `json:"results_path"`
+	ExpID           string        `json:"exp_id"`
+	Timeout         time.Duration `json:"timeout"`
+	Duration        time.Duration `json:"duration"`
+	CollectInterval time.Duration `json:"cint"`
+	Load            string        `json:"load"`
+}
 
 func main() {
 	flag.Parse()
@@ -78,6 +93,26 @@ func main() {
 		terms = append(terms, scanner.Text())
 	}
 	logger.Printf("Terms dictionary successfully scanned. Loaded %d terms.", len(terms))
+
+	config := Config{
+		Dict:            *dict,
+		Index:           *index,
+		ResultsPath:     *resultsPath,
+		ExpID:           *expID,
+		Timeout:         *timeout,
+		Duration:        *duration,
+		CollectInterval: *cint,
+		Load:            *load,
+	}
+	cFile, err := os.Create(filepath.Join(*resultsPath, "config_"+*expID+".json"))
+	if err != nil {
+		logger.Fatal(err)
+	}
+	enc := json.NewEncoder(cFile)
+	if err := enc.Encode(&config); err != nil {
+		logger.Fatal(err)
+	}
+	logger.Printf("Config file written to: %s", cFile.Name())
 
 	endStatsChan := make(chan struct{})
 	var statsWaiter sync.WaitGroup
