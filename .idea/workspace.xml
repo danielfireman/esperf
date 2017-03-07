@@ -4,7 +4,6 @@
     <list default="true" id="24c46cd1-af10-4554-8d6a-7e0618a8345a" name="Default" comment="">
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/main.go" afterPath="$PROJECT_DIR$/main.go" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/vendor/gopkg.in/olivere/elastic.v5/errors.go" afterPath="$PROJECT_DIR$/vendor/gopkg.in/olivere/elastic.v5/errors.go" />
     </list>
     <ignored path="$PROJECT_DIR$/out/" />
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
@@ -26,8 +25,8 @@
       <file leaf-file-name="main.go" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/main.go">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="547">
-              <caret line="208" column="19" lean-forward="false" selection-start-line="208" selection-start-column="19" selection-end-line="208" selection-end-column="19" />
+            <state relative-caret-position="4032">
+              <caret line="224" column="0" lean-forward="true" selection-start-line="224" selection-start-column="0" selection-end-line="224" selection-end-column="0" />
               <folding>
                 <element signature="e#14#192#0" expanded="true" />
               </folding>
@@ -48,8 +47,8 @@
       <file leaf-file-name="client.go" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/vendor/gopkg.in/olivere/elastic.v5/client.go">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="21348">
-              <caret line="1201" column="31" lean-forward="true" selection-start-line="1201" selection-start-column="31" selection-end-line="1201" selection-end-column="31" />
+            <state relative-caret-position="231">
+              <caret line="453" column="59" lean-forward="false" selection-start-line="453" selection-start-column="43" selection-end-line="453" selection-end-column="59" />
               <folding />
             </state>
           </provider>
@@ -60,7 +59,9 @@
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="612">
               <caret line="39" column="5" lean-forward="false" selection-start-line="39" selection-start-column="5" selection-end-line="39" selection-end-column="5" />
-              <folding />
+              <folding>
+                <marker date="1488428789738" expanded="true" signature="1495:1527" ph="{...}" />
+              </folding>
             </state>
           </provider>
         </entry>
@@ -68,7 +69,7 @@
       <file leaf-file-name="stats_collector.go" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/stats_collector.go">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="1872">
+            <state relative-caret-position="1656">
               <caret line="104" column="31" lean-forward="false" selection-start-line="104" selection-start-column="31" selection-end-line="104" selection-end-column="31" />
               <folding>
                 <element signature="e#14#149#0" expanded="true" />
@@ -98,7 +99,6 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>keep</find>
       <find>DefaultClient</find>
       <find>dead</find>
       <find>marked as</find>
@@ -128,6 +128,7 @@
       <find>sendRe</find>
       <find>max</find>
       <find>System</find>
+      <find>ClientOptionFunc</find>
     </findStrings>
   </component>
   <component name="Git.Settings">
@@ -550,11 +551,11 @@
     <servers />
   </component>
   <component name="ToolWindowManager">
-    <frame x="-1" y="27" width="1602" height="873" extended-state="6" />
+    <frame x="-1" y="27" width="1602" height="873" extended-state="7" />
     <editor active="true" />
     <layout>
       <window_info id="Designer" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
-      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.15057915" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
+      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.17953669" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
       <window_info id="Palette&#9;" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32978722" sideWeight="0.5" order="7" side_tool="true" content_ui="tabs" />
@@ -883,7 +884,7 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/stats_collector.go">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="1872">
+        <state relative-caret-position="1656">
           <caret line="104" column="31" lean-forward="false" selection-start-line="104" selection-start-column="31" selection-end-line="104" selection-end-column="31" />
           <folding>
             <element signature="e#14#149#0" expanded="true" />
@@ -905,19 +906,13 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/vendor/gopkg.in/olivere/elastic.v5/client.go">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="21348">
-          <caret line="1201" column="31" lean-forward="true" selection-start-line="1201" selection-start-column="31" selection-end-line="1201" selection-end-column="31" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/vendor/gopkg.in/olivere/elastic.v5/errors.go">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="612">
           <caret line="39" column="5" lean-forward="false" selection-start-line="39" selection-start-column="5" selection-end-line="39" selection-end-column="5" />
-          <folding />
+          <folding>
+            <marker date="1488428789738" expanded="true" signature="1495:1527" ph="{...}" />
+          </folding>
         </state>
       </provider>
     </entry>
@@ -929,10 +924,18 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/vendor/gopkg.in/olivere/elastic.v5/client.go">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="231">
+          <caret line="453" column="59" lean-forward="false" selection-start-line="453" selection-start-column="43" selection-end-line="453" selection-end-column="59" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/main.go">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="547">
-          <caret line="208" column="19" lean-forward="false" selection-start-line="208" selection-start-column="19" selection-end-line="208" selection-end-column="19" />
+        <state relative-caret-position="4032">
+          <caret line="224" column="0" lean-forward="true" selection-start-line="224" selection-start-column="0" selection-end-line="224" selection-end-column="0" />
           <folding>
             <element signature="e#14#192#0" expanded="true" />
           </folding>

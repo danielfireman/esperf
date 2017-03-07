@@ -28,6 +28,7 @@ var (
 	load = flag.String("load", "const:10", "Describes the load impressed on the server")
 	dict = flag.String("dict", "small_dict.txt", "Dictionary of terms to use. One term per line.")
 	timeout = flag.Duration("timeout", 5 * time.Second, "Timeout to be used in connections to ES.")
+	verbose = flag.Bool("verbose", false, "Prints out requests and responses. Good for debugging.")
 )
 
 var (
@@ -57,7 +58,7 @@ func main() {
 	}
 	logger.Printf("Starting sending load: LoadDef:%s Duration:%v\n", *load, *duration)
 
-	client, err := elastic.NewClient(
+	opts := []elastic.ClientOptionFunc {
 		elastic.SetErrorLog(logger),
 		elastic.SetURL(*addr),
 		elastic.SetHealthcheck(false),
@@ -74,7 +75,13 @@ func main() {
 				}).Dial,
 				TLSHandshakeTimeout: *timeout,
 			},
-		}))
+		}),
+	}
+	if *verbose {
+		opts = append(opts, elastic.SetTraceLog(logger))
+		opts = append(opts, elastic.SetInfoLog(logger))
+	}
+	client, err := elastic.NewClient(opts...)
 	if err != nil {
 		logger.Fatal(err)
 	}
