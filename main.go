@@ -31,10 +31,22 @@ var (
 	verbose     = flag.Bool("verbose", false, "Prints out requests and responses. Good for debugging.")
 )
 
+type ResponseTimeStats map[int]*Histogram
+
+func (s ResponseTimeStats) Record(code int, v int64) {
+	h, ok := s[code]
+	if !ok {
+		h = NewHistogram()
+		s[code] = h
+	}
+	h.Record(v)
+}
+
 var (
 	succs, errs, reqs, shed uint64
 	logger                  = log.New(os.Stdout, "", log.LstdFlags|log.Lshortfile)
-	respTimeStats           = NewResponseTimeStats()
+	responseTimeStats = make(ResponseTimeStats)
+	pauseHistogram = NewHistogram()
 )
 
 type Config struct {
@@ -49,6 +61,7 @@ type Config struct {
 	Load            string        `json:"load"`
 	StartTime       time.Time     `json:"start_time"`
 }
+
 
 func main() {
 	flag.Parse()
@@ -135,7 +148,7 @@ func main() {
 	logger.Println("Stats collector started.")
 
 	endLoadChan := make(chan struct{})
-	pauseLoadChan := make(chan float64)
+	pauseLoadChan := make(chan time.Duration)
 	nTerms := len(terms)
 	fire := gen.GetTicker()
 	go func() {
@@ -147,8 +160,7 @@ func main() {
 			case <-fire:
 				go sendRequest(client, pauseLoadChan, terms[i%nTerms])
 			case pt := <-pauseLoadChan:
-				time.Sleep(time.Duration(pt * 1e9))
-				logger.Printf("Sleeping: %v\n", time.Duration(pt*1e9))
+				time.Sleep(pt)
 				func() {
 					for {
 						select {
@@ -186,7 +198,7 @@ func main() {
 	logger.Println("Load test finished successfully.")
 }
 
-func sendRequest(client *elastic.Client, pauseChan chan float64, term string) {
+func sendRequest(client *elastic.Client, pauseChan chan time.Duration, term string) {
 	atomic.AddUint64(&reqs, 1)
 	q := elastic.NewTermQuery("text", term)
 	resp, err := client.Search().Index(*index).Query(q).Do(context.Background())
@@ -197,17 +209,18 @@ func sendRequest(client *elastic.Client, pauseChan chan float64, term string) {
 		}
 		if elasticErr.Status == http.StatusServiceUnavailable || elasticErr.Status == http.StatusTooManyRequests {
 			atomic.AddUint64(&shed, 1)
-			respTimeStats.Record(elasticErr.Status, 0)
+			responseTimeStats.Record(elasticErr.Status, 0)
 			ra := elasticErr.Header.Get("Retry-After")
 			if ra == "" {
-				logger.Fatal("Could extract retry-after information")
+				logger.Fatal("Could not extract retry-after information")
 			}
 			pt, err := strconv.ParseFloat(ra, 64)
 			if err != nil {
-				logger.Fatal("Could extract retry-after information")
+				logger.Fatal("Could not extract retry-after information")
 			}
-			logger.Printf("Pause: %f", pt)
-			pauseChan <- pt
+			pauseMillis := int64(pt * 1e9)
+			pauseHistogram.Record(pauseMillis)
+			pauseChan <- time.Duration(pauseMillis)
 			return
 		}
 		atomic.AddUint64(&errs, 1)
@@ -217,7 +230,7 @@ func sendRequest(client *elastic.Client, pauseChan chan float64, term string) {
 	switch {
 	case s == http.StatusOK:
 		atomic.AddUint64(&succs, 1)
-		respTimeStats.Record(s, resp.TookInMillis)
+		responseTimeStats.Record(s, resp.TookInMillis)
 	default:
 		atomic.AddUint64(&errs, 1)
 	}

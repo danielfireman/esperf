@@ -32,6 +32,11 @@ func statsCollector(client *elastic.Client, end chan struct{}, wg *sync.WaitGrou
 	cpu := csv.NewWriter(bufio.NewWriter(cpuF))
 	writeCPUHeader(cpu)
 
+	pauseF := newFile("pause")
+	defer pauseF.Close()
+	pause := csv.NewWriter(bufio.NewWriter(pauseF))
+	writePauseHeader(pause)
+
 	tpFs := make(map[int]*os.File)
 	tpWriters := make(map[int]*csv.Writer)
 	defer func() {
@@ -63,10 +68,17 @@ func statsCollector(client *elastic.Client, end chan struct{}, wg *sync.WaitGrou
 		writeMem(ns, memPools, ts)
 		writeGC(ns, gc, ts)
 		writeCPU(ns, cpu, ts)
+		writePause(pause, ts, pauseHistogram.Snapshot())
 
-		s, count := respTimeStats.Snapshot()
+		snapshots := make(map[int]*Snapshot)
+		count := make(map[int]int)
+		for code, h := range responseTimeStats {
+			s := h.Snapshot()
+			snapshots[code] = s
+			count[code] = s.Count()
+		}
 		writeTp(tpFs, tpWriters, ts, count)
-		writeLatency(latencyFs, latencyWriters, ts, s)
+		writeLatency(latencyFs, latencyWriters, ts, snapshots)
 	}
 
 	// TODO(danielfireman): Make cint a function parameter.
@@ -93,8 +105,8 @@ func newFile(fName string) *os.File {
 	return f
 }
 
-func writeLatency(fMap map[int]*os.File, wMap map[int]*csv.Writer, ts int64, s *Snapshot) {
-	for code, quantiles := range s.Quantile(0.5, 0.9, 0.99, 0.999) {
+func writeLatency(fMap map[int]*os.File, wMap map[int]*csv.Writer, ts int64, snapshots map[int]*Snapshot) {
+	for code, s := range snapshots {
 		f, ok := fMap[code]
 		if !ok {
 			f = newFile(fmt.Sprintf("latency.%d", code))
@@ -112,12 +124,13 @@ func writeLatency(fMap map[int]*os.File, wMap map[int]*csv.Writer, ts int64, s *
 			}
 			wMap[code] = w
 		}
+		q := s.Quantile(0.5, 0.9, 0.99, 0.999)
 		w.Write([]string{
 			strconv.FormatInt(ts, 10),
-			fmt.Sprintf("%.2f", float64(quantiles[0])),
-			fmt.Sprintf("%.2f", float64(quantiles[1])),
-			fmt.Sprintf("%.2f", float64(quantiles[2])),
-			fmt.Sprintf("%.2f", float64(quantiles[3]))})
+			fmt.Sprintf("%.2f", float64(q[0])),
+			fmt.Sprintf("%.2f", float64(q[1])),
+			fmt.Sprintf("%.2f", float64(q[2])),
+			fmt.Sprintf("%.2f", float64(q[3]))})
 		w.Flush()
 		if err := w.Error(); err != nil {
 			logger.Fatal(err)
@@ -125,7 +138,31 @@ func writeLatency(fMap map[int]*os.File, wMap map[int]*csv.Writer, ts int64, s *
 	}
 }
 
-func writeTp(fMap map[int]*os.File, wMap map[int]*csv.Writer, ts int64, countMap map[int]int64) {
+func writePauseHeader(w *csv.Writer) {
+	if err := w.Write([]string{"ts", "p50", "p90", "p99", "p999"}); err != nil {
+		logger.Fatal(err)
+	}
+	w.Flush()
+	if err := w.Error(); err != nil {
+		logger.Fatal(err)
+	}
+}
+
+func writePause(w *csv.Writer, ts int64, s *Snapshot) {
+	q := s.Quantile(0.5, 0.9, 0.99, 0.999)
+	w.Write([]string{
+		strconv.FormatInt(ts, 10),
+		fmt.Sprintf("%.2f", float64(q[0])),
+		fmt.Sprintf("%.2f", float64(q[1])),
+		fmt.Sprintf("%.2f", float64(q[2])),
+		fmt.Sprintf("%.2f", float64(q[3]))})
+	w.Flush()
+	if err := w.Error(); err != nil {
+		logger.Fatal(err)
+	}
+}
+
+func writeTp(fMap map[int]*os.File, wMap map[int]*csv.Writer, ts int64, countMap map[int]int) {
 	for code, count := range countMap {
 		f, ok := fMap[code]
 		if !ok {
@@ -144,7 +181,7 @@ func writeTp(fMap map[int]*os.File, wMap map[int]*csv.Writer, ts int64, countMap
 				logger.Fatal(err)
 			}
 		}
-		if err := w.Write([]string{strconv.FormatInt(ts, 10), strconv.FormatInt(count, 10)}); err != nil {
+		if err := w.Write([]string{strconv.FormatInt(ts, 10), strconv.Itoa(count)}); err != nil {
 			logger.Fatal(err)
 		}
 		w.Flush()
