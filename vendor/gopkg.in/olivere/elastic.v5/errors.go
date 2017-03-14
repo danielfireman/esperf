@@ -38,23 +38,17 @@ func checkResponse(req *http.Request, res *http.Response, ignoreErrors ...int) e
 // createResponseError creates an Error structure from the HTTP response,
 // its status code and the error information sent by Elasticsearch.
 func createResponseError(res *http.Response) error {
-	headerCopy := make(http.Header)
-	for k, vv := range res.Header {
-		for _, v := range vv {
-			headerCopy.Add(k, v)
-		}
-	}
 	if res.Body == nil {
-		return &Error{Status: res.StatusCode, Header: headerCopy}
+		return &Error{Status: res.StatusCode}
 	}
 	data, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		return &Error{Status: res.StatusCode, Header: headerCopy}
+		return &Error{Status: res.StatusCode}
 	}
 	errReply := new(Error)
 	err = json.Unmarshal(data, errReply)
 	if err != nil {
-		return &Error{Status: res.StatusCode, Header: headerCopy}
+		return &Error{Status: res.StatusCode}
 	}
 	if errReply != nil {
 		if errReply.Status == 0 {
@@ -62,14 +56,13 @@ func createResponseError(res *http.Response) error {
 		}
 		return errReply
 	}
-	return &Error{Status: res.StatusCode, Header: headerCopy}
+	return &Error{Status: res.StatusCode}
 }
 
 // Error encapsulates error details as returned from Elasticsearch.
 type Error struct {
 	Status  int           `json:"status"`
 	Details *ErrorDetails `json:"error,omitempty"`
-	Header  http.Header   `json:"header"`
 }
 
 // ErrorDetails encapsulate error details from Elasticsearch.

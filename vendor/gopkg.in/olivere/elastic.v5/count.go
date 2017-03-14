@@ -258,16 +258,16 @@ func (s *CountService) Validate() error {
 }
 
 // Do executes the operation.
-func (s *CountService) Do(ctx context.Context) (*CountResponse, error) {
+func (s *CountService) Do(ctx context.Context) (int64, error) {
 	// Check pre-conditions
 	if err := s.Validate(); err != nil {
-		return nil, err
+		return 0, err
 	}
 
 	// Get URL for request
 	path, params, err := s.buildURL()
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 
 	// Setup HTTP request body
@@ -275,7 +275,7 @@ func (s *CountService) Do(ctx context.Context) (*CountResponse, error) {
 	if s.query != nil {
 		src, err := s.query.Source()
 		if err != nil {
-			return nil, err
+			return 0, err
 		}
 		query := make(map[string]interface{})
 		query["query"] = src
@@ -289,19 +289,19 @@ func (s *CountService) Do(ctx context.Context) (*CountResponse, error) {
 	// Get HTTP response
 	res, err := s.client.PerformRequest(ctx, "POST", path, params, body)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 
 	// Return result
 	ret := new(CountResponse)
 	if err := s.client.decoder.Decode(res.Body, ret); err != nil {
-		return nil, err
+		return 0, err
 	}
 	if ret != nil {
-		return ret, nil
+		return ret.Count, nil
 	}
 
-	return nil, nil
+	return int64(0), nil
 }
 
 // CountResponse is the response of using the Count API.

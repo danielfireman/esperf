@@ -14,7 +14,6 @@ import (
 	"golang.org/x/net/context"
 
 	"gopkg.in/olivere/elastic.v5/uritemplates"
-	"net/http"
 )
 
 // Search for documents in Elasticsearch.
@@ -374,8 +373,6 @@ func (s *SearchService) Do(ctx context.Context) (*SearchResult, error) {
 	if err := s.client.decoder.Decode(res.Body, ret); err != nil {
 		return nil, err
 	}
-	ret.StatusCode = res.StatusCode
-	ret.Header = res.Header
 	return ret, nil
 }
 
@@ -387,8 +384,6 @@ type SearchResult struct {
 	Suggest      SearchSuggest `json:"suggest"`      // results from suggesters
 	Aggregations Aggregations  `json:"aggregations"` // results from aggregations
 	TimedOut     bool          `json:"timed_out"`    // true if the search timed out
-	StatusCode int `json:"http_status_code"`    // HTTP request's status code
-	Header http.Header `json:"http_header"`    // HTTP request's status code
 	//Error        string        `json:"error,omitempty"` // used in MultiSearch only
 	// TODO double-check that MultiGet now returns details error information
 	Error *ErrorDetails `json:"error,omitempty"` // only used in MultiGet

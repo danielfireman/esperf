@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
 	"time"
 
 	"github.com/danielfireman/esperf/metrics"
@@ -78,6 +77,16 @@ var runCmd = &cobra.Command{
 		}
 		log.Printf("Terms dictionary successfully scanned. Loaded %d terms.\n", len(r.terms))
 
+		r.pauseChan = make(chan time.Duration)
+		r.requestsSent = metrics.NewCounter()
+		r.errors = metrics.NewCounter()
+		r.responseTimes = metrics.NewHistogram()
+		r.pauseTimes = metrics.NewHistogram()
+		pauseInterceptor := retrier{
+			pauseChan:  r.pauseChan,
+			pauseTimes: r.pauseTimes,
+		}
+
 		// Elastic client.
 		elasticLogger := log.New(os.Stdout, "", log.LstdFlags|log.Lshortfile)
 		opts := []elastic.ClientOptionFunc{
@@ -87,6 +96,7 @@ var runCmd = &cobra.Command{
 			elastic.SetSniff(false),
 			elastic.SetHealthcheck(false),
 			elastic.SetMaxRetries(0),
+			elastic.SetRetrier(&pauseInterceptor),
 			elastic.SetHealthcheckTimeout(timeout),
 			elastic.SetHttpClient(&http.Client{
 				Timeout: timeout,
@@ -121,11 +131,8 @@ var runCmd = &cobra.Command{
 			Load:            load,
 		}
 
+		// TODO(danielfireman): Review metrics collection design.
 		collector := NewESCollector(r.client)
-		r.requestsSent = metrics.NewCounter()
-		r.errors = metrics.NewCounter()
-		r.responseTimes = metrics.NewHistogram()
-		r.pauseTimes = metrics.NewHistogram()
 		r.report, err = reporter.New(
 			r.config.CollectInterval,
 			r.config.Timeout,
@@ -164,16 +171,17 @@ var runCmd = &cobra.Command{
 }
 
 type runner struct {
-	loadGen LoadGen
-	client  *elastic.Client
-	terms   []string
-	config  Config
-	report  *reporter.Reporter
+	loadGen   LoadGen
+	client    *elastic.Client
+	terms     []string
+	config    Config
+	report    *reporter.Reporter
+	pauseChan chan time.Duration
 
-	responseTimes *metrics.Histogram
-	pauseTimes    *metrics.Histogram
 	requestsSent  *metrics.Counter
+	responseTimes *metrics.Histogram
 	errors        *metrics.Counter
+	pauseTimes    *metrics.Histogram
 }
 
 func csvFilePath(name string, c Config) string {
@@ -184,7 +192,6 @@ func (r *runner) Run() error {
 	r.report.Start()
 
 	endLoadChan := make(chan struct{})
-	pauseLoadChan := make(chan time.Duration)
 	nTerms := len(r.terms)
 	fire := r.loadGen.GetTicker()
 	go func() {
@@ -194,13 +201,13 @@ func (r *runner) Run() error {
 		for i := 0; ; i++ {
 			select {
 			case <-fire:
-				go sendRequest(r.client, pauseLoadChan, r.terms[i%nTerms])
-			case pt := <-pauseLoadChan:
+				go r.sendRequest(r.terms[i%nTerms])
+			case pt := <-r.pauseChan:
 				time.Sleep(pt)
 				func() {
 					for {
 						select {
-						case <-pauseLoadChan:
+						case <-r.pauseChan:
 						default:
 							return
 						}
@@ -218,7 +225,7 @@ func (r *runner) Run() error {
 	<-time.Tick(duration)
 	endLoadChan <- struct{}{}
 	close(endLoadChan)
-	close(pauseLoadChan)
+	close(r.pauseChan)
 	r.config.FinishTime = time.Now()
 
 	log.Println("Finishing stats collection...")
@@ -228,37 +235,14 @@ func (r *runner) Run() error {
 	return nil
 }
 
-func sendRequest(client *elastic.Client, pauseChan chan time.Duration, term string) {
+func (r *runner) sendRequest(term string) {
 	r.requestsSent.Inc()
-	q := elastic.NewMatchPhraseQuery("text", term)
-	resp, err := client.Search().Index(r.config.Index).Query(q).Do(context.Background())
-	if err != nil {
-		elasticErr, ok := err.(*elastic.Error)
-		if !ok {
-			log.Fatal(err.Error())
-		}
-		if elasticErr.Status == http.StatusServiceUnavailable || elasticErr.Status == http.StatusTooManyRequests {
-			ra := elasticErr.Header.Get("Retry-After")
-			if ra == "" {
-				log.Fatal("Could not extract retry-after information")
-			}
-			pt, err := strconv.ParseFloat(ra, 64)
-			if err != nil {
-				log.Fatal("Could not extract retry-after information")
-			}
-			pauseMillis := int64(pt * 1e9)
-			r.pauseTimes.Record(pauseMillis)
-			pauseChan <- time.Duration(pauseMillis)
-			return
-		}
-		r.errors.Inc()
-		return
-	}
-	s := resp.StatusCode
-	switch {
-	case s == http.StatusOK:
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	resp, err := r.client.Search().Index(r.config.Index).Query(elastic.NewMatchPhraseQuery("text", term)).Do(ctx)
+	if err == nil {
 		r.responseTimes.Record(resp.TookInMillis)
-	default:
+	} else {
 		r.errors.Inc()
 	}
 }
