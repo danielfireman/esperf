@@ -9,6 +9,18 @@
 			"revisionTime": "2016-10-20T19:34:09Z"
 		},
 		{
+			"checksumSHA1": "iBdtx9ZfZuQH4c5k3TIQOBoevNA=",
+			"path": "github.com/spf13/cobra",
+			"revision": "16c014f1a19d865b765b420e74508f80eb831ada",
+			"revisionTime": "2016-07-16T15:09:30Z"
+		},
+		{
+			"checksumSHA1": "5KvHyB1CImtwZT3fwNkNUlc8R0k=",
+			"path": "github.com/spf13/pflag",
+			"revision": "9ff6c6923cfffbcd502984b8e0c80539a94968b7",
+			"revisionTime": "2017-01-30T21:42:45Z"
+		},
+		{
 			"checksumSHA1": "f/eVIww5Y//uSP4IKef7eef+mJs=",
 			"path": "gopkg.in/olivere/elastic.v5",
 			"revision": "4f7c9774c6041d96b9c522cfcbb657a5a49dbbb2",

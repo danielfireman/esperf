@@ -1,53 +1,20 @@
 package main
 
 import (
-	"bufio"
-	"context"
-	"encoding/json"
-	"flag"
-	"log"
-	"net"
-	"net/http"
+	"fmt"
 	"os"
-	"path/filepath"
-	"strconv"
-	"sync"
-	"sync/atomic"
-	"time"
 
-	"gopkg.in/olivere/elastic.v5"
+	"github.com/danielfireman/esperf/cmd"
 )
 
-var (
-	addr        = flag.String("addr", "http://localhost:9200", "Elastic search HTTP address")
-	index       = flag.String("index", "wikipediax", "Index to perform queries")
-	resultsPath = flag.String("results_path", "~/results", "")
-	expID       = flag.String("exp_id", "1", "")
-	duration    = flag.Duration("duration", 30*time.Second, "Time sending load to the server.")
-	cint        = flag.Duration("cint", 5*time.Second, "Interval between metrics collection.")
-	load        = flag.String("load", "const:10", "Describes the load impressed on the server")
-	dict        = flag.String("dict", "small_dict.txt", "Dictionary of terms to use. One term per line.")
-	timeout     = flag.Duration("timeout", 5*time.Second, "Timeout to be used in connections to ES.")
-	verbose     = flag.Bool("verbose", false, "Prints out requests and responses. Good for debugging.")
-)
-
-type ResponseTimeStats map[int]*Histogram
-
-func (s ResponseTimeStats) Record(code int, v int64) {
-	h, ok := s[code]
-	if !ok {
-		h = NewHistogram()
-		s[code] = h
+func main() {
+	if err := cmd.RootCmd.Execute(); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
 	}
-	h.Record(v)
 }
 
-var (
-	succs, errs, reqs, shed uint64
-	logger                  = log.New(os.Stdout, "", log.LstdFlags|log.Lshortfile)
-	responseTimeStats = make(ResponseTimeStats)
-	pauseHistogram = NewHistogram()
-)
+/*
 
 type Config struct {
 	Dict            string        `json:"dict"`
@@ -200,7 +167,7 @@ func main() {
 
 func sendRequest(client *elastic.Client, pauseChan chan time.Duration, term string) {
 	atomic.AddUint64(&reqs, 1)
-	q := elastic.NewTermQuery("text", term)
+	q := elastic.NewMatchPhraseQuery("text", term)
 	resp, err := client.Search().Index(*index).Query(q).Do(context.Background())
 	if err != nil {
 		elasticErr, ok := err.(*elastic.Error)
@@ -235,3 +202,4 @@ func sendRequest(client *elastic.Client, pauseChan chan time.Duration, term stri
 		atomic.AddUint64(&errs, 1)
 	}
 }
+*/

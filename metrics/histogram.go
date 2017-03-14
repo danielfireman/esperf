@@ -1,4 +1,4 @@
-package main
+package metrics
 
 import (
 	"sync"
@@ -16,7 +16,7 @@ func newSnapshot(values []int64) *Snapshot {
 
 type Snapshot struct {
 	estimator tdigest.TDigest
-	count int
+	count     int
 }
 
 // Estimate the qth quantile value of the snapshot. The input value of
@@ -40,8 +40,8 @@ func NewHistogram() *Histogram {
 
 type Histogram struct {
 	sync.Mutex
-	td    tdigest.TDigest
-	buff  []int64
+	td   tdigest.TDigest
+	buff []int64
 }
 
 func (s *Histogram) Record(v int64) {
@@ -50,7 +50,7 @@ func (s *Histogram) Record(v int64) {
 	s.buff = append(s.buff, v)
 }
 
-func (s *Histogram) Snapshot() *Snapshot{
+func (s *Histogram) Snapshot() *Snapshot {
 	s.Lock()
 	// Snapshotting buffers. Need to keep this race region as
 	// small as possible.
