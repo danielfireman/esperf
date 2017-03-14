@@ -1,14 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="24c46cd1-af10-4554-8d6a-7e0618a8345a" name="Default" comment="">
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/cmd/config.go" afterPath="$PROJECT_DIR$/cmd/config.go" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/cmd/run.go" afterPath="$PROJECT_DIR$/cmd/run.go" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/metrics/histogram.go" afterPath="$PROJECT_DIR$/metrics/histogram.go" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/reporter/reporter.go" afterPath="$PROJECT_DIR$/reporter/reporter.go" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/reporter/store.go" afterPath="$PROJECT_DIR$/reporter/store.go" />
-    </list>
+    <list default="true" id="24c46cd1-af10-4554-8d6a-7e0618a8345a" name="Default" comment="" />
     <ignored path="$PROJECT_DIR$/out/" />
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="TRACKING_ENABLED" value="true" />
@@ -54,9 +47,25 @@
         <entry file="file://$PROJECT_DIR$/reporter/store.go">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="450">
-              <caret line="55" column="34" lean-forward="false" selection-start-line="55" selection-start-column="34" selection-end-line="55" selection-end-column="34" />
+              <caret line="56" column="34" lean-forward="false" selection-start-line="56" selection-start-column="34" selection-end-line="56" selection-end-column="34" />
               <folding>
                 <element signature="e#18#127#0" expanded="true" />
+                <marker date="1489513712225" expanded="true" signature="247:868" ph="{...}" />
+                <marker date="1489513712225" expanded="true" signature="468:599" ph="..." />
+                <marker date="1489513712225" expanded="true" signature="487:531" ph="{...}" />
+                <marker date="1489513712225" expanded="true" signature="555:594" ph="{...}" />
+                <marker date="1489513712225" expanded="true" signature="623:721" ph="..." />
+                <marker date="1489513712225" expanded="true" signature="642:657" ph="{...}" />
+                <marker date="1489513712225" expanded="true" signature="679:716" ph="{...}" />
+                <marker date="1489513712225" expanded="true" signature="746:846" ph="..." />
+                <marker date="1489513712225" expanded="true" signature="765:780" ph="{...}" />
+                <marker date="1489513712225" expanded="true" signature="803:841" ph="{...}" />
+                <marker date="1489513712225" expanded="true" signature="895:947" ph="{...}" />
+                <marker date="1489513712225" expanded="true" signature="1488:1538" ph="{...}" />
+                <marker date="1489513712225" expanded="true" signature="1650:1837" ph="{...}" />
+                <marker date="1489513712225" expanded="true" signature="1673:1742" ph="{...}" />
+                <marker date="1489513712225" expanded="true" signature="1863:1914" ph="{...}" />
+                <marker date="1489513712225" expanded="true" signature="2051:2120" ph="{...}" />
               </folding>
             </state>
           </provider>
@@ -205,8 +214,8 @@
         <option value="$PROJECT_DIR$/reporter/reporter.go" />
         <option value="$PROJECT_DIR$/reporter/store.go" />
         <option value="$PROJECT_DIR$/metrics/histogram.go" />
-        <option value="$PROJECT_DIR$/cmd/run.go" />
         <option value="$PROJECT_DIR$/metrics/counter.go" />
+        <option value="$PROJECT_DIR$/cmd/run.go" />
       </list>
     </option>
   </component>
@@ -1044,9 +1053,25 @@
     <entry file="file://$PROJECT_DIR$/reporter/store.go">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="450">
-          <caret line="55" column="34" lean-forward="false" selection-start-line="55" selection-start-column="34" selection-end-line="55" selection-end-column="34" />
+          <caret line="56" column="34" lean-forward="false" selection-start-line="56" selection-start-column="34" selection-end-line="56" selection-end-column="34" />
           <folding>
             <element signature="e#18#127#0" expanded="true" />
+            <marker date="1489513712225" expanded="true" signature="247:868" ph="{...}" />
+            <marker date="1489513712225" expanded="true" signature="468:599" ph="..." />
+            <marker date="1489513712225" expanded="true" signature="487:531" ph="{...}" />
+            <marker date="1489513712225" expanded="true" signature="555:594" ph="{...}" />
+            <marker date="1489513712225" expanded="true" signature="623:721" ph="..." />
+            <marker date="1489513712225" expanded="true" signature="642:657" ph="{...}" />
+            <marker date="1489513712225" expanded="true" signature="679:716" ph="{...}" />
+            <marker date="1489513712225" expanded="true" signature="746:846" ph="..." />
+            <marker date="1489513712225" expanded="true" signature="765:780" ph="{...}" />
+            <marker date="1489513712225" expanded="true" signature="803:841" ph="{...}" />
+            <marker date="1489513712225" expanded="true" signature="895:947" ph="{...}" />
+            <marker date="1489513712225" expanded="true" signature="1488:1538" ph="{...}" />
+            <marker date="1489513712225" expanded="true" signature="1650:1837" ph="{...}" />
+            <marker date="1489513712225" expanded="true" signature="1673:1742" ph="{...}" />
+            <marker date="1489513712225" expanded="true" signature="1863:1914" ph="{...}" />
+            <marker date="1489513712225" expanded="true" signature="2051:2120" ph="{...}" />
           </folding>
         </state>
       </provider>
