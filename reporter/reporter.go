@@ -91,7 +91,7 @@ func (r *Reporter) Start() {
 	}()
 }
 
-func (r *Reporter) End() {
+func (r *Reporter) Finish() {
 	r.endChan <- struct{}{}
 	r.waiter.Wait()
 	close(r.endChan)

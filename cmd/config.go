@@ -18,6 +18,7 @@ type Config struct {
 	CollectInterval time.Duration `json:"cint"`
 	Load            string        `json:"load"`
 	StartTime       time.Time     `json:"start_time"`
+	FinishTime      time.Time     `json:"finish_time"`
 }
 
 func (c *Config) Write() error {

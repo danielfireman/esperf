@@ -11,12 +11,12 @@ func newSnapshot(values []int64) *Snapshot {
 	for _, v := range values {
 		td.Add(float64(v), 1)
 	}
-	return &Snapshot{td, len(values)}
+	return &Snapshot{td, int64(len(values))}
 }
 
 type Snapshot struct {
 	estimator tdigest.TDigest
-	count     int
+	count     int64
 }
 
 // Estimate the qth quantile value of the snapshot. The input value of
@@ -30,7 +30,7 @@ func (s *Snapshot) Quantile(quantiles ...float64) []float64 {
 	return ret
 }
 
-func (s *Snapshot) Count() int {
+func (s *Snapshot) Count() int64 {
 	return s.count
 }
 

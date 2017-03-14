@@ -26,7 +26,7 @@ func CSVStore(i interface{}, path string) (Store, error) {
 	default:
 		return nil, fmt.Errorf("unexpected metric: %T\n", t)
 	case *metrics.Histogram:
-		w.Write([]string{"ts", "50p", "90p", "99p", "999p"})
+		w.Write([]string{"ts", "count", "50p", "90p", "99p", "999p"})
 		return &CSVHistogram{f: f, w: w, v: i.(*metrics.Histogram)}, nil
 	case *metrics.Counter:
 		w.Write([]string{"ts", "value"})
@@ -49,9 +49,11 @@ func (csv *CSVHistogram) Close() error {
 }
 
 func (csv *CSVHistogram) Write(now int64) error {
-	q := csv.v.Snapshot().Quantile(0.5, 0.9, 0.99, 0.999)
+	s := csv.v.Snapshot()
+	q := s.Quantile(0.5, 0.9, 0.99, 0.999)
 	csv.w.Write([]string{
 		strconv.FormatInt(now, 10),
+		strconv.FormatInt(s.Count(), 10),
 		fmt.Sprintf("%.2f", float64(q[0])),
 		fmt.Sprintf("%.2f", float64(q[1])),
 		fmt.Sprintf("%.2f", float64(q[2])),

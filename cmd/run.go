@@ -10,17 +10,12 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"sync/atomic"
 	"time"
 
 	"github.com/danielfireman/esperf/metrics"
 	"github.com/danielfireman/esperf/reporter"
 	"github.com/spf13/cobra"
 	"gopkg.in/olivere/elastic.v5"
-)
-
-var (
-	succs, errs, reqs, shed uint64
 )
 
 var (
@@ -124,10 +119,11 @@ var runCmd = &cobra.Command{
 			Duration:        duration,
 			CollectInterval: cint,
 			Load:            load,
-			StartTime:       time.Now(),
 		}
 
 		collector := NewESCollector(r.client)
+		r.requestsSent = metrics.NewCounter()
+		r.errors = metrics.NewCounter()
 		r.responseTimes = metrics.NewHistogram()
 		r.pauseTimes = metrics.NewHistogram()
 		r.report, err = reporter.New(
@@ -135,6 +131,8 @@ var runCmd = &cobra.Command{
 			r.config.Timeout,
 			reporter.MetricToCSV(r.responseTimes, csvFilePath("response.time", r.config)),
 			reporter.MetricToCSV(r.pauseTimes, csvFilePath("pause.time", r.config)),
+			reporter.MetricToCSV(r.requestsSent, csvFilePath("requests.sent", r.config)),
+			reporter.MetricToCSV(r.errors, csvFilePath("errors", r.config)),
 			reporter.AddCollector(collector),
 			reporter.MetricToCSV(collector.Mem.YoungPoolUsedBytes, csvFilePath("young.pool.used.bytes", r.config)),
 			reporter.MetricToCSV(collector.Mem.YoungPoolMaxBytes, csvFilePath("young.pool.max.bytes", r.config)),
@@ -174,6 +172,8 @@ type runner struct {
 
 	responseTimes *metrics.Histogram
 	pauseTimes    *metrics.Histogram
+	requestsSent  *metrics.Counter
+	errors        *metrics.Counter
 }
 
 func csvFilePath(name string, c Config) string {
@@ -212,29 +212,24 @@ func (r *runner) Run() error {
 		}
 	}()
 	log.Printf("Worker has started. Waiting for their hard work...\n")
-	start := time.Now()
+
+	r.config.StartTime = time.Now()
 	r.loadGen.Start() // Start firing load.
 	<-time.Tick(duration)
 	endLoadChan <- struct{}{}
 	close(endLoadChan)
 	close(pauseLoadChan)
-	dur := time.Now().Sub(start).Seconds()
-
-	log.Printf("Done. AVGQPS:%.2f #REQS:%d #SUCC:%d #ERR:%d #SHED:%d AVGTP:%.2f", float64(reqs)/dur, reqs, succs, errs, shed, float64(succs)/dur)
-	atomic.StoreUint64(&reqs, 0)
-	atomic.StoreUint64(&succs, 0)
-	atomic.StoreUint64(&errs, 0)
-	atomic.StoreUint64(&shed, 0)
+	r.config.FinishTime = time.Now()
 
 	log.Println("Finishing stats collection...")
-	r.report.End()
+	r.report.Finish()
 	log.Printf("Done. Results can be found at %s\n", r.config.ResultsPath)
 	log.Println("Load test finished successfully.")
 	return nil
 }
 
 func sendRequest(client *elastic.Client, pauseChan chan time.Duration, term string) {
-	atomic.AddUint64(&reqs, 1)
+	r.requestsSent.Inc()
 	q := elastic.NewMatchPhraseQuery("text", term)
 	resp, err := client.Search().Index(r.config.Index).Query(q).Do(context.Background())
 	if err != nil {
@@ -243,7 +238,6 @@ func sendRequest(client *elastic.Client, pauseChan chan time.Duration, term stri
 			log.Fatal(err.Error())
 		}
 		if elasticErr.Status == http.StatusServiceUnavailable || elasticErr.Status == http.StatusTooManyRequests {
-			atomic.AddUint64(&shed, 1)
 			ra := elasticErr.Header.Get("Retry-After")
 			if ra == "" {
 				log.Fatal("Could not extract retry-after information")
@@ -257,15 +251,14 @@ func sendRequest(client *elastic.Client, pauseChan chan time.Duration, term stri
 			pauseChan <- time.Duration(pauseMillis)
 			return
 		}
-		atomic.AddUint64(&errs, 1)
+		r.errors.Inc()
 		return
 	}
 	s := resp.StatusCode
 	switch {
 	case s == http.StatusOK:
-		atomic.AddUint64(&succs, 1)
 		r.responseTimes.Record(resp.TookInMillis)
 	default:
-		atomic.AddUint64(&errs, 1)
+		r.errors.Inc()
 	}
 }
