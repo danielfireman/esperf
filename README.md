@@ -1,6 +1,6 @@
 # esperf
 
-Is a multiplatform command line tool to load test and collect metrics from your [ElasticSearch](https://github.com/elastic/elasticsearch) deployment. It provides:
+Multiplatform command line tool to load test and collect metrics from your [ElasticSearch](https://github.com/elastic/elasticsearch) deployment. Built with love by danielfireman and friends in Go. Esperf provides:
 
 * Ability to query terms from a dictionary of words
 * Ability to properly handle 503 or 429 http responde codes, respecting the delay suggested by the Retry-After response header field.
