@@ -18,8 +18,6 @@ import (
 )
 
 var (
-	addr        string
-	index       string
 	resultsPath string
 	expID       string
 	duration    time.Duration
@@ -27,12 +25,9 @@ var (
 	load        string
 	dict        string
 	timeout     time.Duration
-	verbose     bool
 )
 
 func init() {
-	runCmd.Flags().StringVar(&addr, "addr", "http://localhost:9200", "Elastic search HTTP address")
-	runCmd.Flags().StringVar(&index, "index", "wikipediax", "Index to perform queries")
 	runCmd.Flags().StringVar(&resultsPath, "results_path", "", "")
 	runCmd.Flags().StringVar(&expID, "exp_id", "1", "")
 	runCmd.Flags().DurationVarP(&duration, "duration", "d", 30*time.Second, "Time sending load to the server.")
@@ -40,7 +35,6 @@ func init() {
 	runCmd.Flags().StringVar(&load, "load", "const:10", "Describes the load impressed on the server")
 	runCmd.Flags().StringVar(&dict, "dict", "small_dict.txt", "Dictionary of terms to use. One term per line.")
 	runCmd.Flags().DurationVar(&timeout, "timeout", 10*time.Second, "Timeout to be used in connections to ES.")
-	runCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Prints out requests and responses. Good for debugging.")
 }
 
 var r runner

@@ -1,6 +1,8 @@
 package cmd
 
-import "github.com/spf13/cobra"
+import (
+	"github.com/spf13/cobra"
+)
 
 var RootCmd = &cobra.Command{
 	Use:   "esperf",
@@ -14,6 +16,16 @@ Source code and documentation is available at http://github.com/danielfireman/es
 	},
 }
 
+var (
+	addr    string
+	index   string
+	verbose bool
+)
+
 func init() {
+	RootCmd.PersistentFlags().StringVar(&addr, "addr", "http://localhost:9200", "Elastic search HTTP address")
+	RootCmd.PersistentFlags().StringVar(&index, "index", "wikipediax", "Index to perform queries")
+	RootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Prints out requests and responses. Good for debugging.")
 	RootCmd.AddCommand(runCmd)
+	RootCmd.AddCommand(parseSlowlogCmd)
 }
