@@ -18,6 +18,9 @@ import (
 )
 
 var (
+	addr        string
+	index       string
+	verbose     bool
 	resultsPath string
 	expID       string
 	duration    time.Duration
@@ -28,6 +31,9 @@ var (
 )
 
 func init() {
+	runCmd.PersistentFlags().StringVar(&addr, "addr", "http://localhost:9200", "Elastic search HTTP address")
+	runCmd.PersistentFlags().StringVar(&index, "index", "wikipediax", "Index to perform queries")
+	runCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Prints out requests and responses. Good for debugging.")
 	runCmd.Flags().StringVar(&resultsPath, "results_path", "", "")
 	runCmd.Flags().StringVar(&expID, "exp_id", "1", "")
 	runCmd.Flags().DurationVarP(&duration, "duration", "d", 30*time.Second, "Time sending load to the server.")

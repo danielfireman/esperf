@@ -1,4 +1,4 @@
-package cmd
+package loadspec
 
 import (
 	"github.com/spf13/cobra"
@@ -12,21 +12,10 @@ import (
 	"time"
 )
 
-const (
-	timeLayout      = "2006-01-02 15:04:05.999"
-	hostField       = "host"
-	timestampField  = "ts"
-	indexField      = "index"
-	typesField      = "types"
-	searchTypeField = "search_type"
-	sourceField     = "source"
-	numFields       = 6
-)
-
 var parseSlowlogCmd = &cobra.Command{
 	Use:   "parseslowlog",
-	Short: "Outputs a replayable version of the slowlog passed in via stdin.",
-	Long:  "Outputs a replayable version of the slowlog passed in via stdin.",
+	Short: "Outputs a replayable loadspec based on the passed-in slowlog and parameters.",
+	Long:  "Outputs a replayable loadspec based on the passed-in slowlog and parameters.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// Regular expression setup.
 		// The solution is based on regexp's named matches. For each entry, we build a map of
@@ -84,13 +73,7 @@ var parseSlowlogCmd = &cobra.Command{
 			if err := enc.Encode(fields); err != nil {
 				return err
 			}
-			// Cleaning up fields.
-			fields[timestampField] = ""
-			fields[hostField] = ""
-			fields[indexField] = ""
-			fields[typesField] = ""
-			fields[searchTypeField] = ""
-			fields[sourceField] = ""
+			resetFields(fields)
 
 		}
 		if err := scanner.Err(); err != nil {
