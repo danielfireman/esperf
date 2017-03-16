@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -69,18 +68,17 @@ var genLoadspec = &cobra.Command{
 
 		finalTime := duration.Nanoseconds()
 		ia := int64(0)
-		fields := make(map[string]string, numFields)
+		entry := Entry{}
 		for currTime := int64(0); currTime <= finalTime; currTime += ia {
-			fields[timestampField] = strconv.FormatInt(currTime, 10)
-			fields[hostField] = addr
-			fields[indexField] = index
-			fields[typesField] = types
-			fields[searchTypeField] = searchType
-			fields[sourceField] = strings.Replace(query, rdictVar, terms[randGen.Int()%len(terms)], 1)
-			if err := enc.Encode(fields); err != nil {
+			entry.TimestampNanos = currTime
+			entry.Host = host
+			entry.Index = index
+			entry.Types = types
+			entry.SearchType = searchType
+			entry.Source = strings.Replace(query, rdictVar, terms[randGen.Int()%len(terms)], 1)
+			if err := enc.Encode(entry); err != nil {
 				return err
 			}
-			resetFields(fields)
 			ia = iaGen.Next()
 		}
 		return nil

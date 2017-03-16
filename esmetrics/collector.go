@@ -1,7 +1,8 @@
-package cmd
+package esmetrics
 
 import (
 	"context"
+	"time"
 
 	"github.com/danielfireman/esperf/metrics"
 	"gopkg.in/olivere/elastic.v5"
@@ -28,7 +29,15 @@ type GC struct {
 	FullCount       *metrics.IntGauge
 }
 
-func NewESCollector(client *elastic.Client) *ESCollector {
+func NewCollector(host string, timeout time.Duration) (*ESCollector, error) {
+	client, err := elastic.NewClient(
+		elastic.SetURL(host),
+		elastic.SetSniff(false),
+		elastic.SetHealthcheck(false),
+		elastic.SetHealthcheckTimeout(timeout))
+	if err != nil {
+		return nil, err
+	}
 	return &ESCollector{
 		client: client,
 		Mem: Mem{
@@ -49,7 +58,7 @@ func NewESCollector(client *elastic.Client) *ESCollector {
 			FullCount:       metrics.NewIntGauge(),
 			FullTimeMillis:  metrics.NewIntGauge(),
 		},
-	}
+	}, nil
 
 }
 

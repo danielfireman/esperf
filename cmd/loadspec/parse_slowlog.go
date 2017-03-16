@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"os"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -17,6 +16,17 @@ var parseSlowlogCmd = &cobra.Command{
 	Short: "Outputs a replayable loadspec based on the passed-in slowlog and parameters.",
 	Long:  "Outputs a replayable loadspec based on the passed-in slowlog and parameters.",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		// These constants need to be in sync with the regular expression bellow.
+		const (
+			hostField       = "host"
+			timestampField  = "ts"
+			indexField      = "index"
+			typesField      = "types"
+			searchTypeField = "search_type"
+			sourceField     = "source"
+			numFields       = 6
+		)
+
 		// Regular expression setup.
 		// The solution is based on regexp's named matches. For each entry, we build a map of
 		// of fields and values. This map is encoded as json and (buffered) written to stdout.
@@ -33,6 +43,7 @@ var parseSlowlogCmd = &cobra.Command{
 
 		var previousTime time.Time
 		fields := make(map[string]string, numFields)
+		entry := Entry{}
 		scanner := bufio.NewScanner(os.Stdin)
 		for count := 0; scanner.Scan(); count++ {
 			// Building a map using named matches.
@@ -43,37 +54,47 @@ var parseSlowlogCmd = &cobra.Command{
 					fields[subExpNames[i]] = n
 				}
 			}
-			// Adjusting time layout.
-			fields[timestampField] = strings.Replace(fields[timestampField], ",", ".", 1)
 
-			// Overwriting stuff.
-			if addr != "" {
-				fields[hostField] = addr
+			entry.SearchType = fields[searchTypeField]
+			entry.Types = fields[typesField]
+			entry.Source = fields[sourceField]
+			if host == "" {
+				entry.Host = fields[hostField]
+			} else {
+				entry.Host = host
 			}
-			if index != "" {
-				fields[indexField] = index
+
+			if index == "" {
+				entry.Index = index
+			} else {
+
+			}
+			if index == "" {
+				entry.Index = fields[indexField]
+			} else {
+				entry.Index = index
 			}
 
 			// Making timestamp relative to the previous one. Simulate inter-arrival time can be as easy
 			// as a time.Sleep and trigger a goroutine.
+			fields[timestampField] = strings.Replace(fields[timestampField], ",", ".", 1)
 			if count == 0 {
 				previousTime, err = time.Parse(timeLayout, fields[timestampField])
 				if err != nil {
 					return err
 				}
-				fields[timestampField] = "0"
+				entry.TimestampNanos = 0
 			} else {
 				currTime, err := time.Parse(timeLayout, fields[timestampField])
 				if err != nil {
 					return err
 				}
-				fields[timestampField] = strconv.FormatInt(currTime.Sub(previousTime).Nanoseconds(), 10)
+				entry.TimestampNanos = currTime.Sub(previousTime).Nanoseconds()
 				previousTime = currTime
 			}
-			if err := enc.Encode(fields); err != nil {
+			if err := enc.Encode(&entry); err != nil {
 				return err
 			}
-			resetFields(fields)
 
 		}
 		if err := scanner.Err(); err != nil {

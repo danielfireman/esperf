@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"github.com/danielfireman/esperf/cmd/loadspec"
+	"github.com/danielfireman/esperf/cmd/replay"
 	"github.com/spf13/cobra"
 )
 
@@ -18,6 +19,6 @@ Source code and documentation is available at http://github.com/danielfireman/es
 }
 
 func init() {
-	RootCmd.AddCommand(runCmd)
+	RootCmd.AddCommand(replay.RootCmd)
 	RootCmd.AddCommand(loadspec.RootCmd)
 }
