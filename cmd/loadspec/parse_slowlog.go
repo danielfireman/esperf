@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"os"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
-	"sort"
 
 	"github.com/spf13/cobra"
 )
@@ -50,9 +50,9 @@ var parseSlowlogCmd = &cobra.Command{
 				}
 			}
 			entry := Entry{
-				SearchType : fields[searchTypeField],
-				Types: fields[typesField],
-				Source: fields[sourceField],
+				SearchType: fields[searchTypeField],
+				Types:      fields[typesField],
+				Source:     fields[sourceField],
 			}
 			if host == "" {
 				entry.Host = fields[hostField]

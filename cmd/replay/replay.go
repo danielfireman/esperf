@@ -12,8 +12,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 	"sync"
+	"time"
 
 	"github.com/danielfireman/esperf/esmetrics"
 	"github.com/danielfireman/esperf/metrics"
@@ -22,23 +22,22 @@ import (
 
 	// TODO(danielfireman): Review this dependency (commands depending on commands). This is a bad smell.
 	"github.com/danielfireman/esperf/cmd/loadspec"
-	"log"
 )
 
 var (
-	host string
+	host        string
 	resultsPath string
-	expID string
-	cint time.Duration
-	timeout time.Duration
+	expID       string
+	cint        time.Duration
+	timeout     time.Duration
 )
 
 func init() {
 	RootCmd.Flags().StringVar(&host, "host", "", "")
 	RootCmd.Flags().StringVar(&resultsPath, "results_path", "", "")
 	RootCmd.Flags().StringVar(&expID, "exp_id", "1", "")
-	RootCmd.Flags().DurationVar(&cint, "cint", 5 * time.Second, "Interval between metrics collection.")
-	RootCmd.Flags().DurationVar(&timeout, "timeout", 10 * time.Second, "Timeout to be used in connections to ES.")
+	RootCmd.Flags().DurationVar(&cint, "cint", 5*time.Second, "Interval between metrics collection.")
+	RootCmd.Flags().DurationVar(&timeout, "timeout", 10*time.Second, "Timeout to be used in connections to ES.")
 }
 
 var (
@@ -47,7 +46,7 @@ var (
 	// DefaultConnections is the default amount of max open idle connections per
 	// target host.
 	defaultConnections = 10000
-	r runner
+	r                  runner
 )
 
 var RootCmd = &cobra.Command{
@@ -118,8 +117,8 @@ var RootCmd = &cobra.Command{
 }
 
 type runner struct {
-	client        http.Client
-	report        *reporter.Reporter
+	client http.Client
+	report *reporter.Reporter
 
 	requestsSent  *metrics.Counter
 	responseTimes *metrics.Histogram
@@ -128,7 +127,7 @@ type runner struct {
 }
 
 func csvFilePath(name, expID, resultsPath string) string {
-	return filepath.Join(resultsPath, name + "_" + expID + ".csv")
+	return filepath.Join(resultsPath, name+"_"+expID+".csv")
 }
 
 func (r *runner) Run() error {

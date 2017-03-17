@@ -2,13 +2,9 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="24c46cd1-af10-4554-8d6a-7e0618a8345a" name="Default" comment="">
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/misc.xml" afterPath="$PROJECT_DIR$/.idea/misc.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/cmd/loadspec/entry.go" afterPath="$PROJECT_DIR$/cmd/loadspec/entry.go" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/cmd/loadspec/gen.go" afterPath="$PROJECT_DIR$/cmd/loadspec/gen.go" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/cmd/loadspec/parse_slowlog.go" afterPath="$PROJECT_DIR$/cmd/loadspec/parse_slowlog.go" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/cmd/replay/replay.go" afterPath="$PROJECT_DIR$/cmd/replay/replay.go" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/cmd/root.go" afterPath="$PROJECT_DIR$/cmd/root.go" />
     </list>
     <ignored path="$PROJECT_DIR$/out/" />
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
@@ -30,10 +26,10 @@
       <file leaf-file-name="replay.go" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/cmd/replay/replay.go">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="231">
-              <caret line="181" column="43" lean-forward="false" selection-start-line="181" selection-start-column="40" selection-end-line="181" selection-end-column="43" />
+            <state relative-caret-position="2052">
+              <caret line="114" column="26" lean-forward="false" selection-start-line="114" selection-start-column="26" selection-end-line="114" selection-end-column="26" />
               <folding>
-                <element signature="e#16#479#0" expanded="true" />
+                <element signature="e#16#472#0" expanded="true" />
               </folding>
             </state>
           </provider>
@@ -67,8 +63,10 @@
         <entry file="file://$PROJECT_DIR$/cmd/loadspec/entry.go">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="54">
-              <caret line="3" column="31" lean-forward="true" selection-start-line="3" selection-start-column="31" selection-end-line="3" selection-end-column="31" />
-              <folding />
+              <caret line="3" column="31" lean-forward="false" selection-start-line="3" selection-start-column="31" selection-end-line="3" selection-end-column="31" />
+              <folding>
+                <marker date="1489769514202" expanded="true" signature="723:787" ph="{...}" />
+              </folding>
             </state>
           </provider>
         </entry>
@@ -1074,8 +1072,10 @@
     <entry file="file://$PROJECT_DIR$/cmd/loadspec/entry.go">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="54">
-          <caret line="3" column="31" lean-forward="true" selection-start-line="3" selection-start-column="31" selection-end-line="3" selection-end-column="31" />
-          <folding />
+          <caret line="3" column="31" lean-forward="false" selection-start-line="3" selection-start-column="31" selection-end-line="3" selection-end-column="31" />
+          <folding>
+            <marker date="1489769514202" expanded="true" signature="723:787" ph="{...}" />
+          </folding>
         </state>
       </provider>
     </entry>
@@ -1109,10 +1109,10 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/cmd/replay/replay.go">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="231">
-          <caret line="181" column="43" lean-forward="false" selection-start-line="181" selection-start-column="40" selection-end-line="181" selection-end-column="43" />
+        <state relative-caret-position="2052">
+          <caret line="114" column="26" lean-forward="false" selection-start-line="114" selection-start-column="26" selection-end-line="114" selection-end-column="26" />
           <folding>
-            <element signature="e#16#479#0" expanded="true" />
+            <element signature="e#16#472#0" expanded="true" />
           </folding>
         </state>
       </provider>
