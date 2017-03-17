@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"fmt"
+
 	"github.com/danielfireman/esperf/cmd/loadspec"
 	"github.com/danielfireman/esperf/cmd/replay"
 	"github.com/spf13/cobra"
@@ -13,6 +15,7 @@ var RootCmd = &cobra.Command{
 Built with love by danielfireman and friends in Go.
 Source code and documentation is available at http://github.com/danielfireman/esperf`,
 	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println("Root CMD")
 		// fall back on default help if no args/flags are passed.
 		cmd.HelpFunc()(cmd, args)
 	},

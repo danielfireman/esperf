@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"sync"
 
 	"github.com/danielfireman/esperf/esmetrics"
 	"github.com/danielfireman/esperf/metrics"
@@ -20,25 +21,24 @@ import (
 	"github.com/spf13/cobra"
 
 	// TODO(danielfireman): Review this dependency (commands depending on commands). This is a bad smell.
-	"sync"
-
 	"github.com/danielfireman/esperf/cmd/loadspec"
+	"log"
 )
 
 var (
-	host        string
+	host string
 	resultsPath string
-	expID       string
-	cint        time.Duration
-	timeout     time.Duration
+	expID string
+	cint time.Duration
+	timeout time.Duration
 )
 
 func init() {
 	RootCmd.Flags().StringVar(&host, "host", "", "")
 	RootCmd.Flags().StringVar(&resultsPath, "results_path", "", "")
 	RootCmd.Flags().StringVar(&expID, "exp_id", "1", "")
-	RootCmd.Flags().DurationVar(&cint, "cint", 5*time.Second, "Interval between metrics collection.")
-	RootCmd.Flags().DurationVar(&timeout, "timeout", 10*time.Second, "Timeout to be used in connections to ES.")
+	RootCmd.Flags().DurationVar(&cint, "cint", 5 * time.Second, "Interval between metrics collection.")
+	RootCmd.Flags().DurationVar(&timeout, "timeout", 10 * time.Second, "Timeout to be used in connections to ES.")
 }
 
 var (
@@ -47,7 +47,7 @@ var (
 	// DefaultConnections is the default amount of max open idle connections per
 	// target host.
 	defaultConnections = 10000
-	r                  runner
+	r runner
 )
 
 var RootCmd = &cobra.Command{
@@ -118,8 +118,8 @@ var RootCmd = &cobra.Command{
 }
 
 type runner struct {
-	client http.Client
-	report *reporter.Reporter
+	client        http.Client
+	report        *reporter.Reporter
 
 	requestsSent  *metrics.Counter
 	responseTimes *metrics.Histogram
@@ -128,7 +128,7 @@ type runner struct {
 }
 
 func csvFilePath(name, expID, resultsPath string) string {
-	return filepath.Join(resultsPath, name+"_"+expID+".csv")
+	return filepath.Join(resultsPath, name + "_" + expID + ".csv")
 }
 
 func (r *runner) Run() error {
@@ -145,7 +145,7 @@ func (r *runner) Run() error {
 		if err := json.NewDecoder(strings.NewReader(scanner.Text())).Decode(&entry); err != nil {
 			return err
 		}
-		time.Sleep(time.Duration(entry.TimestampNanos))
+		time.Sleep(time.Duration(entry.DelaySinceLastNanos))
 
 		req, err := Request(&entry)
 		if err != nil {
@@ -164,6 +164,7 @@ func (r *runner) Run() error {
 			resp, err := r.client.Do(req)
 			if err != nil {
 				r.errors.Inc()
+				fmt.Printf("Error sending request: %q\n", err)
 				return
 			}
 			defer resp.Body.Close()
@@ -202,7 +203,6 @@ func (r *runner) Run() error {
 			}()
 		default:
 		}
-
 	}
 	wg.Wait()
 	if err := scanner.Err(); err != nil {
@@ -230,5 +230,5 @@ func Request(entry *loadspec.Entry) (*http.Request, error) {
 		q.Set("search_type", strings.ToLower(entry.SearchType))
 	}
 	u.RawQuery = q.Encode()
-	return http.NewRequest("GET", u.RequestURI(), strings.NewReader(entry.Source))
+	return http.NewRequest("GET", u.String(), strings.NewReader(entry.Source))
 }

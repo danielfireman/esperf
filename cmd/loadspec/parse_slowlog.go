@@ -1,14 +1,15 @@
 package loadspec
 
 import (
-	"github.com/spf13/cobra"
-
 	"bufio"
 	"encoding/json"
 	"os"
 	"regexp"
 	"strings"
 	"time"
+	"sort"
+
+	"github.com/spf13/cobra"
 )
 
 var parseSlowlogCmd = &cobra.Command{
@@ -36,16 +37,10 @@ var parseSlowlogCmd = &cobra.Command{
 		}
 		subExpNames := re.SubexpNames()
 
-		// Writer and encoding configuration.
-		writer := bufio.NewWriter(os.Stdout)
-		defer writer.Flush()
-		enc := json.NewEncoder(writer)
-
-		var previousTime time.Time
+		var entries ByDelaySinceLastNanos
 		fields := make(map[string]string, numFields)
-		entry := Entry{}
 		scanner := bufio.NewScanner(os.Stdin)
-		for count := 0; scanner.Scan(); count++ {
+		for scanner.Scan() {
 			// Building a map using named matches.
 			matches := re.FindAllStringSubmatch(scanner.Text(), -1)[0]
 			for i, n := range matches {
@@ -54,10 +49,11 @@ var parseSlowlogCmd = &cobra.Command{
 					fields[subExpNames[i]] = n
 				}
 			}
-
-			entry.SearchType = fields[searchTypeField]
-			entry.Types = fields[typesField]
-			entry.Source = fields[sourceField]
+			entry := Entry{
+				SearchType : fields[searchTypeField],
+				Types: fields[typesField],
+				Source: fields[sourceField],
+			}
 			if host == "" {
 				entry.Host = fields[hostField]
 			} else {
@@ -77,28 +73,36 @@ var parseSlowlogCmd = &cobra.Command{
 
 			// Making timestamp relative to the previous one. Simulate inter-arrival time can be as easy
 			// as a time.Sleep and trigger a goroutine.
-			fields[timestampField] = strings.Replace(fields[timestampField], ",", ".", 1)
-			if count == 0 {
-				previousTime, err = time.Parse(timeLayout, fields[timestampField])
-				if err != nil {
-					return err
-				}
-				entry.TimestampNanos = 0
-			} else {
-				currTime, err := time.Parse(timeLayout, fields[timestampField])
-				if err != nil {
-					return err
-				}
-				entry.TimestampNanos = currTime.Sub(previousTime).Nanoseconds()
-				previousTime = currTime
-			}
-			if err := enc.Encode(&entry); err != nil {
+			t, err := time.Parse(timeLayout, strings.Replace(fields[timestampField], ",", ".", 1))
+			if err != nil {
 				return err
 			}
-
+			// Keeping timestamp here for post-processing bellow.
+			entry.DelaySinceLastNanos = t.UnixNano()
+			entries = append(entries, &entry)
 		}
 		if err := scanner.Err(); err != nil {
 			return err
+		}
+		// Slow log entries are not guaranteed to be timestamp ordered.
+		sort.Sort(entries)
+
+		// Writer and encoding configuration.
+		writer := bufio.NewWriter(os.Stdout)
+		defer writer.Flush()
+		enc := json.NewEncoder(writer)
+		var previousTimestamp, currTimestamp int64
+		for i, e := range entries {
+			currTimestamp = e.DelaySinceLastNanos
+			if i == 0 {
+				e.DelaySinceLastNanos = 0
+			} else {
+				e.DelaySinceLastNanos -= previousTimestamp
+			}
+			previousTimestamp = currTimestamp
+			if err := enc.Encode(&e); err != nil {
+				return err
+			}
 		}
 		return nil
 	},

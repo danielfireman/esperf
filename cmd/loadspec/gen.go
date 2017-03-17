@@ -70,7 +70,7 @@ var genLoadspec = &cobra.Command{
 		ia := int64(0)
 		entry := Entry{}
 		for currTime := int64(0); currTime <= finalTime; currTime += ia {
-			entry.TimestampNanos = currTime
+			entry.DelaySinceLastNanos = ia
 			entry.Host = host
 			entry.Index = index
 			entry.Types = types
