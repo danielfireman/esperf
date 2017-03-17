@@ -194,10 +194,6 @@ func (r *runner) Run() error {
 			case code == http.StatusOK:
 				searchResp := struct {
 					TookInMillis int64 `json:"took"`
-					Error        *struct {
-							     Type   string `json:"type"`
-							     Reason string `json:"reason"`
-						     } `json:"error"`
 				}{}
 				if err := json.NewDecoder(resp.Body).Decode(&searchResp); err != nil {
 					fmt.Printf("error parsing response: %q\n", err)
