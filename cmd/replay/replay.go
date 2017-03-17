@@ -21,6 +21,8 @@ import (
 	"github.com/spf13/cobra"
 
 	// TODO(danielfireman): Review this dependency (commands depending on commands). This is a bad smell.
+	"os/signal"
+
 	"github.com/danielfireman/esperf/cmd/loadspec"
 )
 
@@ -135,6 +137,9 @@ func (r *runner) Run() error {
 	defer r.report.Finish()
 
 	var wg sync.WaitGroup
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, os.Interrupt, os.Kill)
+
 	scanner := bufio.NewScanner(os.Stdin)
 	for count := 0; scanner.Scan(); count++ {
 		// Note: Having a single worker or a single load generator is a way to guarantee the load will obey to a
@@ -167,8 +172,22 @@ func (r *runner) Run() error {
 				return
 			}
 			defer resp.Body.Close()
-
-			if resp.StatusCode == http.StatusServiceUnavailable || resp.StatusCode == http.StatusTooManyRequests {
+			code := resp.StatusCode
+			switch {
+			default:
+				r.errors.Inc()
+			case code == http.StatusOK:
+				searchResp := struct {
+					TookInMillis int64 `json:"took"`
+				}{}
+				if err := json.NewDecoder(resp.Body).Decode(&searchResp); err != nil {
+					fmt.Printf("error parsing response: %q\n", err)
+					// TODO(danielfireman): Make this more elegant. Leveraging cobra error messages.
+					os.Exit(-1)
+					return
+				}
+				r.responseTimes.Record(searchResp.TookInMillis)
+			case code == http.StatusServiceUnavailable || code == http.StatusTooManyRequests:
 				ra := resp.Header.Get("Retry-After")
 				if ra == "" {
 					// TODO(danielfireman): Make this more elegant. Leveraging cobra error messages.
@@ -200,13 +219,16 @@ func (r *runner) Run() error {
 					}
 				} // Emptying pause channel before continue.
 			}()
+		case <-sig:
+			fmt.Println("Interrupting load test.")
+			return nil
 		default:
 		}
 	}
-	wg.Wait()
 	if err := scanner.Err(); err != nil {
 		return err
 	}
+	wg.Wait()
 	return nil
 }
 
