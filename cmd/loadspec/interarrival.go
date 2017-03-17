@@ -59,5 +59,5 @@ type Poisson struct {
 func (p *Poisson) Next() int64 {
 	// NOTE: Implementation follows:
 	// http://preshing.com/20111007/how-to-generate-random-timings-for-a-poisson-process/
-	return int64(-math.Log(1.0-randGen.Float64())/float64(p.lambda)) * 1e9
+	return int64(-math.Log(1.0-randGen.Float64()) / float64(p.lambda) * float64(1e9))
 }
