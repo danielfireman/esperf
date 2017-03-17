@@ -24,22 +24,25 @@ import (
 	"os/signal"
 
 	"github.com/danielfireman/esperf/cmd/loadspec"
+	"net/http/httputil"
 )
 
 var (
-	host        string
+	host string
 	resultsPath string
-	expID       string
-	cint        time.Duration
-	timeout     time.Duration
+	expID string
+	cint time.Duration
+	timeout time.Duration
+	debug bool
 )
 
 func init() {
 	RootCmd.Flags().StringVar(&host, "host", "", "")
 	RootCmd.Flags().StringVar(&resultsPath, "results_path", "", "")
 	RootCmd.Flags().StringVar(&expID, "exp_id", "1", "")
-	RootCmd.Flags().DurationVar(&cint, "cint", 5*time.Second, "Interval between metrics collection.")
-	RootCmd.Flags().DurationVar(&timeout, "timeout", 10*time.Second, "Timeout to be used in connections to ES.")
+	RootCmd.Flags().DurationVar(&cint, "cint", 5 * time.Second, "Interval between metrics collection.")
+	RootCmd.Flags().DurationVar(&timeout, "timeout", 10 * time.Second, "Timeout to be used in connections to ES.")
+	RootCmd.Flags().BoolVar(&debug, "debug", false, "Dump requests and responses.")
 }
 
 var (
@@ -48,7 +51,7 @@ var (
 	// DefaultConnections is the default amount of max open idle connections per
 	// target host.
 	defaultConnections = 10000
-	r                  runner
+	r runner
 )
 
 var RootCmd = &cobra.Command{
@@ -119,8 +122,8 @@ var RootCmd = &cobra.Command{
 }
 
 type runner struct {
-	client http.Client
-	report *reporter.Reporter
+	client        http.Client
+	report        *reporter.Reporter
 
 	requestsSent  *metrics.Counter
 	responseTimes *metrics.Histogram
@@ -129,7 +132,7 @@ type runner struct {
 }
 
 func csvFilePath(name, expID, resultsPath string) string {
-	return filepath.Join(resultsPath, name+"_"+expID+".csv")
+	return filepath.Join(resultsPath, name + "_" + expID + ".csv")
 }
 
 func (r *runner) Run() error {
@@ -160,6 +163,12 @@ func (r *runner) Run() error {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+
+			dReq, _ := httputil.DumpRequest(req, true)
+			if debug {
+				fmt.Println(string(dReq))
+			}
+
 			r.requestsSent.Inc()
 			ctx, cancel := context.WithTimeout(context.Background(), timeout)
 			defer cancel()
@@ -171,6 +180,12 @@ func (r *runner) Run() error {
 				fmt.Printf("Error sending request: %q\n", err)
 				return
 			}
+
+			dResp, _ := httputil.DumpResponse(resp, true)
+			if debug {
+				fmt.Println(string(dResp))
+			}
+
 			defer resp.Body.Close()
 			code := resp.StatusCode
 			switch {
@@ -179,6 +194,10 @@ func (r *runner) Run() error {
 			case code == http.StatusOK:
 				searchResp := struct {
 					TookInMillis int64 `json:"took"`
+					Error        *struct {
+							     Type   string `json:"type"`
+							     Reason string `json:"reason"`
+						     } `json:"error"`
 				}{}
 				if err := json.NewDecoder(resp.Body).Decode(&searchResp); err != nil {
 					fmt.Printf("error parsing response: %q\n", err)
@@ -187,6 +206,23 @@ func (r *runner) Run() error {
 					return
 				}
 				r.responseTimes.Record(searchResp.TookInMillis)
+			case code == http.StatusBadRequest:
+				searchResp := struct {
+					Error        struct {
+						Type   string `json:"type"`
+						Reason string `json:"reason"`
+					} `json:"error"`
+				}{}
+				if err := json.NewDecoder(resp.Body).Decode(&searchResp); err != nil {
+					fmt.Printf("error parsing bad request response: %q\n", err)
+					// TODO(danielfireman): Make this more elegant. Leveraging cobra error messages.
+					os.Exit(-1)
+					return
+				}
+				fmt.Printf("error querying server: %+v\n", searchResp.Error)
+				// TODO(danielfireman): Make this more elegant. Leveraging cobra error messages.
+				os.Exit(-1)
+				return
 			case code == http.StatusServiceUnavailable || code == http.StatusTooManyRequests:
 				ra := resp.Header.Get("Retry-After")
 				if ra == "" {
