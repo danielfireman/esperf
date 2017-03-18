@@ -2,13 +2,13 @@ package esmetrics
 
 import (
 	"context"
-	"time"
-	"net/http"
-	"net"
-	"strings"
-	"fmt"
-	"net/http/httputil"
 	"encoding/json"
+	"fmt"
+	"net"
+	"net/http"
+	"net/http/httputil"
+	"strings"
+	"time"
 
 	"github.com/danielfireman/esperf/metrics"
 )
@@ -42,10 +42,10 @@ func NewCollector(host string, timeout time.Duration, debug bool) (*ESCollector,
 
 	return &ESCollector{
 		debug: debug,
-		url: strings.Join([]string{host, "_nodes", "stats"}, "/"),
+		url:   strings.Join([]string{host, "_nodes", "stats"}, "/"),
 		client: http.Client{
 			Transport: &http.Transport{
-				Dial: (&net.Dialer{KeepAlive: 3 * timeout, Timeout:   timeout}).Dial,
+				Dial: (&net.Dialer{KeepAlive: 3 * timeout, Timeout: timeout}).Dial,
 				ResponseHeaderTimeout: timeout,
 				MaxIdleConnsPerHost:   defaultConnections,
 			},
@@ -59,7 +59,7 @@ func NewCollector(host string, timeout time.Duration, debug bool) (*ESCollector,
 			SurvivorPoolMaxBytes:  metrics.NewIntGauge(),
 		},
 		CPU: CPU{
-			Percent:     metrics.NewIntGauge(),
+			Percent: metrics.NewIntGauge(),
 		},
 		GC: GC{
 			YoungCount:      metrics.NewIntGauge(),
@@ -96,25 +96,25 @@ type CollectorInfo struct {
 
 type NodeStats struct {
 	JVM struct {
-		    Mem struct {
-				Pools struct {
-					      Young    MemPoolInfo `json:"young"`
-					      Old      MemPoolInfo `json:"old"`
-					      Survivor MemPoolInfo `json:"survivor"`
-				      } `json:"pools"`
-			} `json:"mem"`
-		    GC  struct {
-				Collectors struct {
-						   Young CollectorInfo `json:"young"`
-						   Old   CollectorInfo `json:"old"`
-					   } `json:"collectors"`
-			} `json:"gc"`
-	    } `json:"jvm"`
-	OS  struct {
-		    CPU struct {
-				Percent int `json:"percent"`
-			} `json:"cpu"`
-	    } `json:"os"`
+		Mem struct {
+			Pools struct {
+				Young    MemPoolInfo `json:"young"`
+				Old      MemPoolInfo `json:"old"`
+				Survivor MemPoolInfo `json:"survivor"`
+			} `json:"pools"`
+		} `json:"mem"`
+		GC struct {
+			Collectors struct {
+				Young CollectorInfo `json:"young"`
+				Old   CollectorInfo `json:"old"`
+			} `json:"collectors"`
+		} `json:"gc"`
+	} `json:"jvm"`
+	OS struct {
+		CPU struct {
+			Percent int `json:"percent"`
+		} `json:"cpu"`
+	} `json:"os"`
 }
 
 type StatsResponse struct {
