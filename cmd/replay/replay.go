@@ -72,7 +72,6 @@ var RootCmd = &cobra.Command{
 		r.pauseTimes = metrics.NewHistogram()
 		r.client = http.Client{
 			Transport: &http.Transport{
-				Proxy: http.ProxyFromEnvironment,
 				Dial: (&net.Dialer{
 					LocalAddr: &net.TCPAddr{IP: defaultLocalAddr.IP, Zone: defaultLocalAddr.Zone},
 					KeepAlive: 3 * timeout,
@@ -84,7 +83,7 @@ var RootCmd = &cobra.Command{
 		}
 
 		// TODO(danielfireman): Review metrics collection design.
-		collector, err := esmetrics.NewCollector(host, timeout)
+		collector, err := esmetrics.NewCollector(host, timeout, debug)
 		if err != nil {
 			return err
 		}
@@ -103,7 +102,6 @@ var RootCmd = &cobra.Command{
 			reporter.MetricToCSV(collector.Mem.SurvivorPoolUsedBytes, csvFilePath("survivor.pool.used.bytes", expID, resultsPath)),
 			reporter.MetricToCSV(collector.Mem.SurvivorPoolMaxBytes, csvFilePath("survivor.pool.max.bytes", expID, resultsPath)),
 			reporter.MetricToCSV(collector.CPU.Percent, csvFilePath("cpu.percent", expID, resultsPath)),
-			reporter.MetricToCSV(collector.CPU.TotalMillis, csvFilePath("cpu.total.ms", expID, resultsPath)),
 			reporter.MetricToCSV(collector.GC.YoungCount, csvFilePath("gc.young.count", expID, resultsPath)),
 			reporter.MetricToCSV(collector.GC.YoungTimeMillis, csvFilePath("gc.young.time.ms", expID, resultsPath)),
 			reporter.MetricToCSV(collector.GC.FullCount, csvFilePath("gc.full.count", expID, resultsPath)),

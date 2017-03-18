@@ -26,3 +26,5 @@ _testmain.go
 /*.csv
 /*.json
 /big_dict.txt
+/esperf.iml
+/.idea/

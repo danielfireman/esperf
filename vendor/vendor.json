@@ -19,12 +19,6 @@
 			"path": "github.com/spf13/pflag",
 			"revision": "9ff6c6923cfffbcd502984b8e0c80539a94968b7",
 			"revisionTime": "2017-01-30T21:42:45Z"
-		},
-		{
-			"checksumSHA1": "f/eVIww5Y//uSP4IKef7eef+mJs=",
-			"path": "gopkg.in/olivere/elastic.v5",
-			"revision": "4f7c9774c6041d96b9c522cfcbb657a5a49dbbb2",
-			"revisionTime": "2017-02-10T13:58:12Z"
 		}
 	],
 	"rootPath": "github.com/danielfireman/esperf"
