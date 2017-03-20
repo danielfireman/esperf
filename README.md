@@ -41,7 +41,7 @@ Generate a load specification (`poisson.loadspec.json`) that describe the follow
 
 ```bash
 
-$ echo '{"query": {"term": {"text": {"value": "$RDICT"}}}}' |  ./esperf loadspec gen --arrival_spec=poisson:5 --dictionary_file=small_dict.txt --duration=10s "http://localhost:9200/wikipediax?search_type=query_then_fetch" > poisson.loadspec.json
+$ echo '{"query": {"term": {"text": {"value": "$RDICT"}}}}' |  ./esperf loadspec gen --arrival_spec=poisson:5 --dictionary_file=small_dict.txt --duration=10s "http://localhost:9200/wikipediax/_search?search_type=query_then_fetch" > poisson.loadspec.json
 ```
 
 Using the a loadpspec file to run a loadtest. All the results will be placed at the current directory and statistics will be collected each second from http://localhost:9200.
@@ -61,7 +61,7 @@ cat my_slowlogs.log |  ./esperf loadspec parseslowlog > slowlogs.loadspec.json
 If you would like to change URL parameters of the query (for instance, replay the loadtests on another host:port).
 
 ```bash
-cat my_slowlogs.log |  ./esperf loadspec parseslowlog "http://localhost:9200/wikipediax?search_type=query_then_fetch" > slowlogs.loadspec.json
+cat my_slowlogs.log |  ./esperf loadspec parseslowlog "http://localhost:9200/wikipediax/_search?search_type=query_then_fetch" > slowlogs.loadspec.json
 ```
 
 ## Why esperf exists?
