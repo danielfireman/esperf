@@ -19,10 +19,8 @@ import (
 	"github.com/danielfireman/esperf/esmetrics"
 	"github.com/danielfireman/esperf/metrics"
 	"github.com/danielfireman/esperf/reporter"
+	"github.com/danielfireman/esperf/loadspec"
 	"github.com/spf13/cobra"
-
-	// TODO(danielfireman): Review this dependency (commands depending on commands). This is a bad smell.
-	"github.com/danielfireman/esperf/cmd/loadspec"
 )
 
 var (

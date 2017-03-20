@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/danielfireman/esperf/loadspec"
 	"github.com/spf13/cobra"
 )
 
@@ -72,7 +73,7 @@ var genLoadspec = &cobra.Command{
 
 		finalTime := duration.Nanoseconds()
 		ia := int64(0)
-		entry := Entry{}
+		entry := loadspec.Entry{}
 		for currTime := int64(0); currTime <= finalTime; currTime += ia {
 			entry.DelaySinceLastNanos = ia
 			entry.URL = url

@@ -11,6 +11,7 @@ import (
 	"net/url"
 
 	"github.com/spf13/cobra"
+	"github.com/danielfireman/esperf/loadspec"
 )
 
 var parseSlowlogCmd = &cobra.Command{
@@ -43,7 +44,7 @@ var parseSlowlogCmd = &cobra.Command{
 		}
 		subExpNames := re.SubexpNames()
 
-		var entries ByDelaySinceLastNanos
+		var entries loadspec.ByDelaySinceLastNanos
 		fields := make(map[string]string, numFields)
 		scanner := bufio.NewScanner(os.Stdin)
 		for scanner.Scan() {
@@ -59,7 +60,7 @@ var parseSlowlogCmd = &cobra.Command{
 			if fields[logTypeField] != "index.search.slowlog.query" {
 				continue
 			}
-			entry := Entry{Source: fields[sourceField]}
+			entry := loadspec.Entry{Source: fields[sourceField]}
 			// Making timestamp relative to the previous one. Simulate inter-arrival time can be as easy
 			// as a time.Sleep and trigger a goroutine.
 			t, err := time.Parse(timeLayout, strings.Replace(fields[timestampField], ",", ".", 1))
