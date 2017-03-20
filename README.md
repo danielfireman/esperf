@@ -29,18 +29,19 @@ You need go installed and `GOBIN` in your `PATH`. Once that is done, run the com
 $ go get -u github.com/danielfireman/esperf
 ```
 
-## Usage examples
+## Usage
 
-### Custom load specification
+### Creating synthetic load specification
 
-Bellow we show two examples of ways to generate synthetic load test specifications:
+Bellow we show two ways to generate synthetic load test specifications:
 
 ```bash
 $ echo '{"query": {"term": {"text": {"value": "Brazil"}}}}' |  ./esperf loadspec gen --arrival_spec=const:5 --duration=5s "http://localhost:9200/wikipediax/_search?search_type=query_then_fetch"
 ```
 
-In this case the load test described by the spec will last for 5s and the load will follow a constant distribution of 5
-requests per second. There is also only one query sent  `{"query": {"term": {"text": {"value": "Brazil"}}}}`.
+The load test described by the spec will last for 5 seconds and the load will follow a constant distribution of 5
+requests per second. There is also only one query, which is repeated throughout the load test
+execution: `{"query": {"term": {"text": {"value": "Brazil"}}}}`
 
 ```bash
 $ echo '{"query": {"term": {"text": {"value": "$RDICT"}}}}' |  ./esperf loadspec gen --arrival_spec=poisson:5 --dictionary_file=small_dict.txt --duration=5s "http://localhost:9200/wikipediax/_search?search_type=query_then_fetch"
@@ -49,9 +50,9 @@ $ echo '{"query": {"term": {"text": {"value": "$RDICT"}}}}' |  ./esperf loadspec
 In this case:
 * The load test duration is 10s;
 * Trigger term queries using randomly selected strings from small_dict.txt dictionary file;
-* Request arrival times will be sent according to the Poisson distribution (lambda parameter equals 5).
+* Request arrival times will be sent according to the Poisson distribution (lambda parameter equals to 5).
 
-### Slowlogs-based loadtest
+### Creating load specification based on slowlogs
 
 Generate a load specification (`slowlogs.loadspec.json`) based on the passed-in slowlogs. Host, index and other query parameters are going to be extracted from slowlogs. The load test specification will preserve the arrival times or queries, trying to mimick the arrival distribution as much as possible.
 
@@ -65,7 +66,7 @@ If you would like to change URL parameters of the query (for instance, replay th
 cat my_slowlogs.log |  ./esperf loadspec parseslowlog "http://localhost:9200/wikipediax/_search?search_type=query_then_fetch" > slowlogs.loadspec.json
 ```
 
-### Replaying load test specifications
+### Executing a load test specifications (A.K.A. firing the load)
 
 The following command runs a load test based on the passed in specification. All the results will be placed at the
 current directory (`$PWD`) and statistics will be collected each second from http://localhost:9200.
@@ -73,7 +74,6 @@ current directory (`$PWD`) and statistics will be collected each second from htt
 ```bash
 cat poisson.loadspec.json | ./esperf replay --mon_addr=http://localhost:9200 --mon_interval=1s --results_path=$PWD
 ```
-
 
 ### Hit count
 
