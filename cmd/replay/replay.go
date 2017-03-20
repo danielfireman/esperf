@@ -24,21 +24,23 @@ import (
 )
 
 var (
-	host        string
+	host string
 	resultsPath string
-	expID       string
-	cint        time.Duration
-	timeout     time.Duration
-	debug       bool
+	expID string
+	cint time.Duration
+	timeout time.Duration
+	debug bool
+	numClients int
 )
 
 func init() {
 	RootCmd.Flags().StringVar(&host, "mon_host", "", "")
-	RootCmd.Flags().DurationVar(&cint, "mon_interval", 5*time.Second, "Interval between metrics collection.")
+	RootCmd.Flags().DurationVar(&cint, "mon_interval", 5 * time.Second, "Interval between metrics collection.")
 	RootCmd.Flags().StringVar(&resultsPath, "results_path", "", "")
 	RootCmd.Flags().StringVar(&expID, "exp_id", "1", "")
-	RootCmd.Flags().DurationVar(&timeout, "timeout", 30*time.Second, "Timeout to be used in connections to ES.")
+	RootCmd.Flags().DurationVar(&timeout, "timeout", 30 * time.Second, "Timeout to be used in connections to ES.")
 	RootCmd.Flags().BoolVar(&debug, "debug", false, "Dump requests and responses.")
+	RootCmd.Flags().IntVarP(&numClients, "num_clients", "c", 10, "Number of active clients making requests.")
 }
 
 var (
@@ -47,7 +49,7 @@ var (
 	// DefaultConnections is the default amount of max open idle connections per
 	// target host.
 	defaultConnections = 10000
-	r                  runner
+	r runner
 )
 
 var RootCmd = &cobra.Command{
@@ -55,26 +57,33 @@ var RootCmd = &cobra.Command{
 	Short: "Runs a performance testing and collects metrics.",
 	Long:  "Multiplatform command line tool to load test and collect metrics from your ElasticSearch deployment.",
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		if numClients < 1 {
+			return fmt.Errorf("number of clients must be positive.")
+		}
+
 		var err error
 		r = runner{}
 		if resultsPath == "" {
-			return fmt.Errorf("Results path can not be empty. Please set --results_path flag.")
+			return fmt.Errorf("results path can not be empty. Please set --results_path flag.")
 		}
 
 		r.requestsSent = metrics.NewCounter()
 		r.errors = metrics.NewCounter()
 		r.responseTimes = metrics.NewHistogram()
 		r.pauseTimes = metrics.NewHistogram()
-		r.client = http.Client{
-			Transport: &http.Transport{
-				Dial: (&net.Dialer{
-					LocalAddr: &net.TCPAddr{IP: defaultLocalAddr.IP, Zone: defaultLocalAddr.Zone},
-					KeepAlive: 3 * timeout,
-					Timeout:   timeout,
-				}).Dial,
-				ResponseHeaderTimeout: timeout,
-				MaxIdleConnsPerHost:   defaultConnections,
-			},
+		r.clients = make(chan *http.Client, numClients)
+		for i := 0; i < numClients; i++ {
+			r.clients <- &http.Client{
+				Transport: &http.Transport{
+					Dial: (&net.Dialer{
+						LocalAddr: &net.TCPAddr{IP: defaultLocalAddr.IP, Zone: defaultLocalAddr.Zone},
+						KeepAlive: 3 * timeout,
+						Timeout:   timeout,
+					}).Dial,
+					ResponseHeaderTimeout: timeout,
+					MaxIdleConnsPerHost:   defaultConnections,
+				},
+			}
 		}
 
 		// TODO(danielfireman): Review metrics collection design.
@@ -116,8 +125,8 @@ var RootCmd = &cobra.Command{
 }
 
 type runner struct {
-	client http.Client
-	report *reporter.Reporter
+	clients       chan *http.Client
+	report        *reporter.Reporter
 
 	requestsSent  *metrics.Counter
 	responseTimes *metrics.Histogram
@@ -126,7 +135,7 @@ type runner struct {
 }
 
 func csvFilePath(name, expID, resultsPath string) string {
-	return filepath.Join(resultsPath, name+"_"+expID+".csv")
+	return filepath.Join(resultsPath, name + "_" + expID + ".csv")
 }
 
 func (r *runner) Run() error {
@@ -158,6 +167,12 @@ func (r *runner) Run() error {
 		go func() {
 			defer wg.Done()
 
+			// Pretty simple thread-safe pool implementation.
+			client := <-r.clients
+			defer func() {
+				r.clients <- client
+			}()
+
 			dReq, _ := httputil.DumpRequest(req, true)
 			if debug {
 				fmt.Println(string(dReq))
@@ -168,7 +183,7 @@ func (r *runner) Run() error {
 			defer cancel()
 			req.WithContext(ctx)
 
-			resp, err := r.client.Do(req)
+			resp, err := client.Do(req)
 			if err != nil {
 				r.errors.Inc()
 				fmt.Printf("Error sending request: %q\n", err)
@@ -199,9 +214,9 @@ func (r *runner) Run() error {
 			case code == http.StatusBadRequest:
 				searchResp := struct {
 					Error struct {
-						Type   string `json:"type"`
-						Reason string `json:"reason"`
-					} `json:"error"`
+						      Type   string `json:"type"`
+						      Reason string `json:"reason"`
+					      } `json:"error"`
 				}{}
 				if err := json.NewDecoder(resp.Body).Decode(&searchResp); err != nil {
 					fmt.Printf("error parsing bad request response: %q\n", err)
