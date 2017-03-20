@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"net/url"
 
 	"github.com/spf13/cobra"
 )
@@ -19,6 +20,7 @@ var parseSlowlogCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// These constants need to be in sync with the regular expression bellow.
 		const (
+			logTypeField = "log_type"
 			hostField       = "host"
 			timestampField  = "ts"
 			indexField      = "index"
@@ -28,10 +30,14 @@ var parseSlowlogCmd = &cobra.Command{
 			numFields       = 6
 		)
 
+		var urlArg string
+		if len(args) > 0 {
+			urlArg = args[0]
+		}
 		// Regular expression setup.
 		// The solution is based on regexp's named matches. For each entry, we build a map of
 		// of fields and values. This map is encoded as json and (buffered) written to stdout.
-		re, err := regexp.Compile(`\[(?P<ts>[^]]+)\].?\[.*\].?\[.*\].?\[(?P<host>[^]]+)\].?\[(?P<index>[^]]+)\].?\[.*\].*types\[(?P<types>[^]]+)\].*search_type\[(?P<search_type>[^]]+)\].*source\[(?P<source>[^]]+)\]`)
+		re, err := regexp.Compile(`\[(?P<ts>[^]]+)\].?\[.*\].?\[(?P<log_type>[^]]+)\].?\[(?P<host>[^]]+)\].?\[(?P<index>[^]]+)\].?\[.*\].*types\[(?P<types>[^]]+)\].*search_type\[(?P<search_type>[^]]+)\].*source\[(?P<source>[^]]+)\]`)
 		if err != nil {
 			return err
 		}
@@ -49,28 +55,11 @@ var parseSlowlogCmd = &cobra.Command{
 					fields[subExpNames[i]] = n
 				}
 			}
-			entry := Entry{
-				SearchType: fields[searchTypeField],
-				Types:      fields[typesField],
-				Source:     fields[sourceField],
+			// For now, only processing queries.
+			if fields[logTypeField] != "index.search.slowlog.query" {
+				continue
 			}
-			if host == "" {
-				entry.Host = fields[hostField]
-			} else {
-				entry.Host = host
-			}
-
-			if index == "" {
-				entry.Index = index
-			} else {
-
-			}
-			if index == "" {
-				entry.Index = fields[indexField]
-			} else {
-				entry.Index = index
-			}
-
+			entry := Entry{Source: fields[sourceField]}
 			// Making timestamp relative to the previous one. Simulate inter-arrival time can be as easy
 			// as a time.Sleep and trigger a goroutine.
 			t, err := time.Parse(timeLayout, strings.Replace(fields[timestampField], ",", ".", 1))
@@ -79,6 +68,26 @@ var parseSlowlogCmd = &cobra.Command{
 			}
 			// Keeping timestamp here for post-processing bellow.
 			entry.DelaySinceLastNanos = t.UnixNano()
+			// Host argument is treated as full URL. This keeps consistency between here and gen command.
+			var u *url.URL
+			if urlArg != "" {
+				u, err = url.Parse(urlArg)
+				if err != nil {
+					return err
+				}
+			} else {
+				path := []string{fields[hostField], fields[indexField], fields[typesField], "_search"}
+				u, err = url.Parse(strings.Join(path, "/"))
+				if err != nil {
+					return err
+				}
+				q := u.Query()
+				if fields[searchTypeField] != "" {
+					q.Set("search_type", strings.ToLower(fields[searchTypeField]))
+				}
+				u.RawQuery = q.Encode()
+			}
+			entry.URL = u.String()
 			entries = append(entries, &entry)
 		}
 		if err := scanner.Err(); err != nil {

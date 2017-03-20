@@ -12,10 +12,6 @@ const (
 )
 
 var (
-	host       string
-	index      string
-	types      string
-	searchType string
 	randGen    = rand.New(rand.NewSource(time.Now().UnixNano()))
 )
 
@@ -28,10 +24,6 @@ var RootCmd = &cobra.Command{
 }
 
 func init() {
-	RootCmd.PersistentFlags().StringVar(&host, "host", "http://localhost:9200", "Elastic search HTTP address")
-	RootCmd.PersistentFlags().StringVar(&index, "index", "wikipediax", "Index to perform queries")
-	RootCmd.PersistentFlags().StringVar(&types, "type", "", "Index type to be acted upon")
-	RootCmd.PersistentFlags().StringVar(&searchType, "search_type", "", "Type of search, for search queries.")
 	RootCmd.AddCommand(parseSlowlogCmd)
 	RootCmd.AddCommand(genLoadspec)
 }

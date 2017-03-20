@@ -3,10 +3,7 @@ package loadspec
 type Entry struct {
 	// By using delay since last instead of timestamp we make replay a lot easier.
 	DelaySinceLastNanos int64  `json:"delay_since_last_nanos"`
-	Host                string `json:"host"`
-	Index               string `json:"index"`
-	Types               string `json:"types"`
-	SearchType          string `json:"search_type"`
+	URL                 string `json:"url"`
 	Source              string `json:"source"`
 }
 

@@ -7,8 +7,9 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"net/url"
+	"net/http/httputil"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -21,10 +22,6 @@ import (
 	"github.com/spf13/cobra"
 
 	// TODO(danielfireman): Review this dependency (commands depending on commands). This is a bad smell.
-	"os/signal"
-
-	"net/http/httputil"
-
 	"github.com/danielfireman/esperf/cmd/loadspec"
 )
 
@@ -38,11 +35,11 @@ var (
 )
 
 func init() {
-	RootCmd.Flags().StringVar(&host, "host", "", "")
+	RootCmd.Flags().StringVar(&host, "mon_host", "", "")
+	RootCmd.Flags().DurationVar(&cint, "mon_interval", 5*time.Second, "Interval between metrics collection.")
 	RootCmd.Flags().StringVar(&resultsPath, "results_path", "", "")
 	RootCmd.Flags().StringVar(&expID, "exp_id", "1", "")
-	RootCmd.Flags().DurationVar(&cint, "cint", 5*time.Second, "Interval between metrics collection.")
-	RootCmd.Flags().DurationVar(&timeout, "timeout", 10*time.Second, "Timeout to be used in connections to ES.")
+	RootCmd.Flags().DurationVar(&timeout, "timeout", 30*time.Second, "Timeout to be used in connections to ES.")
 	RootCmd.Flags().BoolVar(&debug, "debug", false, "Dump requests and responses.")
 }
 
@@ -153,7 +150,7 @@ func (r *runner) Run() error {
 		}
 		time.Sleep(time.Duration(entry.DelaySinceLastNanos))
 
-		req, err := Request(&entry)
+		req, err := http.NewRequest("GET", entry.URL, strings.NewReader(entry.Source))
 		if err != nil {
 			return err
 		}
@@ -263,24 +260,3 @@ func (r *runner) Run() error {
 	return nil
 }
 
-func Request(entry *loadspec.Entry) (*http.Request, error) {
-	pathEntries := []string{entry.Host}
-	if entry.Index != "" {
-		pathEntries = append(pathEntries, entry.Index)
-	}
-	if entry.Types != "" {
-		pathEntries = append(pathEntries, entry.Types)
-	}
-	pathEntries = append(pathEntries, "_search")
-
-	u, err := url.Parse(strings.Join(pathEntries, "/"))
-	if err != nil {
-		return nil, err
-	}
-	q := u.Query()
-	if entry.SearchType != "" {
-		q.Set("search_type", strings.ToLower(entry.SearchType))
-	}
-	u.RawQuery = q.Encode()
-	return http.NewRequest("GET", u.String(), strings.NewReader(entry.Source))
-}

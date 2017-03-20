@@ -35,6 +35,10 @@ var genLoadspec = &cobra.Command{
 	Short: "Outputs a replayable loadspec following the passed-in parameters.",
 	Long:  "Outputs a replayable loadspec following the passed-in parameters.",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if len(args) == 0 {
+			return fmt.Errorf("Please set the url argument.")
+		}
+		url := args[0]
 		iaGen, err := newInterArrival(arrivalSpec)
 		if err != nil {
 			return err
@@ -71,10 +75,7 @@ var genLoadspec = &cobra.Command{
 		entry := Entry{}
 		for currTime := int64(0); currTime <= finalTime; currTime += ia {
 			entry.DelaySinceLastNanos = ia
-			entry.Host = host
-			entry.Index = index
-			entry.Types = types
-			entry.SearchType = searchType
+			entry.URL = url
 			entry.Source = strings.Replace(query, rdictVar, terms[randGen.Int()%len(terms)], 1)
 			if err := enc.Encode(entry); err != nil {
 				return err
