@@ -37,7 +37,7 @@ var genLoadspec = &cobra.Command{
 	Long:  "Outputs a replayable loadspec following the passed-in parameters.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
-			return fmt.Errorf("Please set the url argument.")
+			return fmt.Errorf("please set the url argument.")
 		}
 		url := args[0]
 		iaGen, err := newInterArrival(arrivalSpec)

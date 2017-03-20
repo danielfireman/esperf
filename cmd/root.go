@@ -5,6 +5,7 @@ import (
 
 	"github.com/danielfireman/esperf/cmd/loadspec"
 	"github.com/danielfireman/esperf/cmd/replay"
+	"github.com/danielfireman/esperf/cmd/hitcounter"
 	"github.com/spf13/cobra"
 )
 
@@ -24,4 +25,5 @@ Source code and documentation is available at http://github.com/danielfireman/es
 func init() {
 	RootCmd.AddCommand(replay.RootCmd)
 	RootCmd.AddCommand(loadspec.RootCmd)
+	RootCmd.AddCommand(hitcounter.RootCmd)
 }
