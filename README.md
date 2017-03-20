@@ -33,22 +33,23 @@ $ go get -u github.com/danielfireman/esperf
 
 ### Custom load specification
 
-Generate a load specification (`poisson.loadspec.json`) that describe the following load test:
+Bellow we show two examples of ways to generate synthetic load test specifications:
 
+```bash
+$ echo '{"query": {"term": {"text": {"value": "Brazil"}}}}' |  ./esperf loadspec gen --arrival_spec=const:5 --duration=5s "http://localhost:9200/wikipediax/_search?search_type=query_then_fetch"
+```
+
+In this case the load test described by the spec will last for 5s and the load will follow a constant distribution of 5
+requests per second. There is also only one query sent  `{"query": {"term": {"text": {"value": "Brazil"}}}}`.
+
+```bash
+$ echo '{"query": {"term": {"text": {"value": "$RDICT"}}}}' |  ./esperf loadspec gen --arrival_spec=poisson:5 --dictionary_file=small_dict.txt --duration=5s "http://localhost:9200/wikipediax/_search?search_type=query_then_fetch"
+```
+
+In this case:
 * The load test duration is 10s;
-* Trigger term queries using randomly selected strings from `small_dict.txt` dictionary file;
+* Trigger term queries using randomly selected strings from small_dict.txt dictionary file;
 * Request arrival times will be sent according to the Poisson distribution (lambda parameter equals 5).
-
-```bash
-
-$ echo '{"query": {"term": {"text": {"value": "$RDICT"}}}}' |  ./esperf loadspec gen --arrival_spec=poisson:5 --dictionary_file=small_dict.txt --duration=10s "http://localhost:9200/wikipediax/_search?search_type=query_then_fetch" > poisson.loadspec.json
-```
-
-Using the a loadpspec file to run a loadtest. All the results will be placed at the current directory and statistics will be collected each second from http://localhost:9200.
-
-```bash
-cat poisson.loadspec.json | ./esperf replay --mon_addr=http://localhost:9200 --mon_interval=1s --results_path=$PWD
-```
 
 ### Slowlogs-based loadtest
 
@@ -63,6 +64,30 @@ If you would like to change URL parameters of the query (for instance, replay th
 ```bash
 cat my_slowlogs.log |  ./esperf loadspec parseslowlog "http://localhost:9200/wikipediax/_search?search_type=query_then_fetch" > slowlogs.loadspec.json
 ```
+
+### Replaying load test specifications
+
+The following command runs a load test based on the passed in specification. All the results will be placed at the
+current directory (`$PWD`) and statistics will be collected each second from http://localhost:9200.
+
+```bash
+cat poisson.loadspec.json | ./esperf replay --mon_addr=http://localhost:9200 --mon_interval=1s --results_path=$PWD
+```
+
+
+### Hit count
+
+Sometimes one would be interested on finding the number of hits of some terms. For instance, that could be useful to
+identify potentially heavy queries.
+
+To generate a list of terms ordered descending by number of hits:
+
+```bash
+echo '{"size":0, "query": {"match": {"text": "$RDICT"}}}' |  ./esperf counthits --dictionary_file=small_dict.txt "http://localhost:9200/wikipediax/_search?search_type=query_then_fetch"
+```
+
+\* according to elasticsearch documentation, the number of hits is the total number of documents matching our search criteria
+
 
 # Why esperf exists?
 

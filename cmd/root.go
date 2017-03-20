@@ -3,9 +3,9 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/danielfireman/esperf/cmd/hitcounter"
 	"github.com/danielfireman/esperf/cmd/loadspec"
 	"github.com/danielfireman/esperf/cmd/replay"
-	"github.com/danielfireman/esperf/cmd/hitcounter"
 	"github.com/spf13/cobra"
 )
 

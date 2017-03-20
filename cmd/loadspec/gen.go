@@ -51,21 +51,27 @@ var genLoadspec = &cobra.Command{
 		}
 		query := string(buff)
 
-		if strings.Contains(string(buff), rdictVar) && dict == "" {
-			return fmt.Errorf("Your query defintion uses $RDICT, which implies a dictionary file. Please specify -d <dictionary file path>.")
-		}
-
-		dictF, err := os.Open(dict)
-		defer dictF.Close()
-		if err != nil {
-			log.Fatal(err.Error())
-		}
 		var terms []string
-		scanner := bufio.NewScanner(dictF)
-		for scanner.Scan() {
-			terms = append(terms, scanner.Text())
+		if strings.Contains(string(buff), rdictVar) {
+			if dict == "" {
+				return fmt.Errorf("query defintion uses $RDICT, please specify --dictionary_file.")
+			}
+			dictF, err := os.Open(dict)
+			defer dictF.Close()
+			if err != nil {
+				log.Fatal(err.Error())
+			}
+			scanner := bufio.NewScanner(dictF)
+			for scanner.Scan() {
+				terms = append(terms, scanner.Text())
+			}
+			if err := scanner.Err(); err != nil {
+				return err
+			}
+			if len(terms) == 0 {
+				return fmt.Errorf("query defintion uses $RDICT and dictionary is empty.")
+			}
 		}
-
 		// Writer and encoding configuration.
 		writer := bufio.NewWriter(os.Stdout)
 		defer writer.Flush()
@@ -74,10 +80,15 @@ var genLoadspec = &cobra.Command{
 		finalTime := duration.Nanoseconds()
 		ia := int64(0)
 		entry := loadspec.Entry{}
+		hasTerms := len(terms) > 0
 		for currTime := int64(0); currTime <= finalTime; currTime += ia {
 			entry.DelaySinceLastNanos = ia
 			entry.URL = url
-			entry.Source = strings.Replace(query, rdictVar, terms[randGen.Int()%len(terms)], 1)
+			if hasTerms {
+				entry.Source = strings.Replace(query, rdictVar, terms[randGen.Int()%len(terms)], 1)
+			} else {
+				entry.Source = query
+			}
 			if err := enc.Encode(entry); err != nil {
 				return err
 			}

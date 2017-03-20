@@ -12,7 +12,7 @@ const (
 )
 
 var (
-	randGen    = rand.New(rand.NewSource(time.Now().UnixNano()))
+	randGen = rand.New(rand.NewSource(time.Now().UnixNano()))
 )
 
 var RootCmd = &cobra.Command{

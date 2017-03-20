@@ -17,28 +17,28 @@ import (
 	"time"
 
 	"github.com/danielfireman/esperf/esmetrics"
+	"github.com/danielfireman/esperf/loadspec"
 	"github.com/danielfireman/esperf/metrics"
 	"github.com/danielfireman/esperf/reporter"
-	"github.com/danielfireman/esperf/loadspec"
 	"github.com/spf13/cobra"
 )
 
 var (
-	host string
+	host        string
 	resultsPath string
-	expID string
-	cint time.Duration
-	timeout time.Duration
-	debug bool
-	numClients int
+	expID       string
+	cint        time.Duration
+	timeout     time.Duration
+	debug       bool
+	numClients  int
 )
 
 func init() {
 	RootCmd.Flags().StringVar(&host, "mon_host", "", "")
-	RootCmd.Flags().DurationVar(&cint, "mon_interval", 5 * time.Second, "Interval between metrics collection.")
+	RootCmd.Flags().DurationVar(&cint, "mon_interval", 5*time.Second, "Interval between metrics collection.")
 	RootCmd.Flags().StringVar(&resultsPath, "results_path", "", "")
 	RootCmd.Flags().StringVar(&expID, "exp_id", "1", "")
-	RootCmd.Flags().DurationVar(&timeout, "timeout", 30 * time.Second, "Timeout to be used in connections to ES.")
+	RootCmd.Flags().DurationVar(&timeout, "timeout", 30*time.Second, "Timeout to be used in connections to ES.")
 	RootCmd.Flags().BoolVar(&debug, "debug", false, "Dump requests and responses.")
 	RootCmd.Flags().IntVarP(&numClients, "num_clients", "c", 10, "Number of active clients making requests.")
 }
@@ -49,7 +49,7 @@ var (
 	// DefaultConnections is the default amount of max open idle connections per
 	// target host.
 	defaultConnections = 10000
-	r runner
+	r                  runner
 )
 
 var RootCmd = &cobra.Command{
@@ -125,8 +125,8 @@ var RootCmd = &cobra.Command{
 }
 
 type runner struct {
-	clients       chan *http.Client
-	report        *reporter.Reporter
+	clients chan *http.Client
+	report  *reporter.Reporter
 
 	requestsSent  *metrics.Counter
 	responseTimes *metrics.Histogram
@@ -135,7 +135,7 @@ type runner struct {
 }
 
 func csvFilePath(name, expID, resultsPath string) string {
-	return filepath.Join(resultsPath, name + "_" + expID + ".csv")
+	return filepath.Join(resultsPath, name+"_"+expID+".csv")
 }
 
 func (r *runner) Run() error {
@@ -214,9 +214,9 @@ func (r *runner) Run() error {
 			case code == http.StatusBadRequest:
 				searchResp := struct {
 					Error struct {
-						      Type   string `json:"type"`
-						      Reason string `json:"reason"`
-					      } `json:"error"`
+						Type   string `json:"type"`
+						Reason string `json:"reason"`
+					} `json:"error"`
 				}{}
 				if err := json.NewDecoder(resp.Body).Decode(&searchResp); err != nil {
 					fmt.Printf("error parsing bad request response: %q\n", err)
@@ -272,4 +272,3 @@ func (r *runner) Run() error {
 	wg.Wait()
 	return nil
 }
-

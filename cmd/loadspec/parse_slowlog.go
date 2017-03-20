@@ -3,15 +3,15 @@ package loadspec
 import (
 	"bufio"
 	"encoding/json"
+	"net/url"
 	"os"
 	"regexp"
 	"sort"
 	"strings"
 	"time"
-	"net/url"
 
-	"github.com/spf13/cobra"
 	"github.com/danielfireman/esperf/loadspec"
+	"github.com/spf13/cobra"
 )
 
 var parseSlowlogCmd = &cobra.Command{
@@ -21,7 +21,7 @@ var parseSlowlogCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// These constants need to be in sync with the regular expression bellow.
 		const (
-			logTypeField = "log_type"
+			logTypeField    = "log_type"
 			hostField       = "host"
 			timestampField  = "ts"
 			indexField      = "index"
