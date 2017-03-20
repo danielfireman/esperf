@@ -64,7 +64,7 @@ If you would like to change URL parameters of the query (for instance, replay th
 cat my_slowlogs.log |  ./esperf loadspec parseslowlog "http://localhost:9200/wikipediax/_search?search_type=query_then_fetch" > slowlogs.loadspec.json
 ```
 
-## Why esperf exists?
+# Why esperf exists?
 
 When researching for tools to load test ES I was quickly reminded by ES REST beauties and pointed out to [JMeter ](http://jmeter.apache.org/) or tools alike. As I needed to conduct experiments with very specific needs, I found that would be easier to build a tool myself than work around.
 
@@ -72,10 +72,11 @@ Also, I couldn't find a spec format that would respect the distribution of the a
 
 On the metrics side, I took a look at some ES plugins (i.e. [Marvel](https://www.elastic.co/downloads/marvel)) but I also bumped into some restrictions, for instance tune the metrics collection interval, pic and choose metrics and have access to raw data (CSV) to play with them in platforms like [R](https://www.r-project.org/) :heart:
 
-# Inspiration
+Non-exaustive list of sources of inspiration:
 
 * [kosho/esperf](https://github.com/kosho/esperf): loadspec gen inspiration.
 * [coxx/es-slowlog](https://github.com/coxx/es-slowlog): ideas and pointers to other loadspec file formats
+* [tsenart/vegeta](https://github.com/tsenart/vegeta/) and [yandex/yandex-tank](https://github.com/yandex/yandex-tank): simple loadtest spec formats
 
 # Thanks
 
