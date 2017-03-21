@@ -146,6 +146,7 @@ func (r *runner) Run() error {
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, os.Interrupt, os.Kill)
 
+	pauseChan := make(chan time.Duration)
 	scanner := bufio.NewScanner(os.Stdin)
 	for count := 0; scanner.Scan(); count++ {
 		// Note: Having a single worker or a single load generator is a way to guarantee the load will obey to a
@@ -162,7 +163,6 @@ func (r *runner) Run() error {
 			return err
 		}
 
-		pauseChan := make(chan time.Duration)
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -269,6 +269,12 @@ func (r *runner) Run() error {
 	if err := scanner.Err(); err != nil {
 		return err
 	}
-	wg.Wait()
+	go func() {
+		wg.Wait()
+		close(pauseChan)
+	}()
+	// Avoiding any goroutine to be blocked on adding to the pause channel
+	for range pauseChan {
+	}
 	return nil
 }
