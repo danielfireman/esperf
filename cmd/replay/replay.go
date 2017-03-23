@@ -21,24 +21,26 @@ import (
 	"github.com/danielfireman/esperf/metrics"
 	"github.com/danielfireman/esperf/reporter"
 	"github.com/spf13/cobra"
+	"sync/atomic"
 )
 
 var (
-	host        string
+	host string
 	resultsPath string
-	expID       string
-	cint        time.Duration
-	timeout     time.Duration
-	debug       bool
-	numClients  int
+	expID string
+	cint time.Duration
+	timeout time.Duration
+	debug bool
+	numClients int
+	isPaused int32
 )
 
 func init() {
 	RootCmd.Flags().StringVar(&host, "mon_host", "", "")
-	RootCmd.Flags().DurationVar(&cint, "mon_interval", 5*time.Second, "Interval between metrics collection.")
+	RootCmd.Flags().DurationVar(&cint, "mon_interval", 5 * time.Second, "Interval between metrics collection.")
 	RootCmd.Flags().StringVar(&resultsPath, "results_path", "", "")
 	RootCmd.Flags().StringVar(&expID, "exp_id", "1", "")
-	RootCmd.Flags().DurationVar(&timeout, "timeout", 30*time.Second, "Timeout to be used in connections to ES.")
+	RootCmd.Flags().DurationVar(&timeout, "timeout", 30 * time.Second, "Timeout to be used in connections to ES.")
 	RootCmd.Flags().BoolVar(&debug, "debug", false, "Dump requests and responses.")
 	RootCmd.Flags().IntVarP(&numClients, "num_clients", "c", 10, "Number of active clients making requests.")
 }
@@ -49,7 +51,7 @@ var (
 	// DefaultConnections is the default amount of max open idle connections per
 	// target host.
 	defaultConnections = 10000
-	r                  runner
+	r runner
 )
 
 var RootCmd = &cobra.Command{
@@ -125,8 +127,8 @@ var RootCmd = &cobra.Command{
 }
 
 type runner struct {
-	clients chan *http.Client
-	report  *reporter.Reporter
+	clients       chan *http.Client
+	report        *reporter.Reporter
 
 	requestsSent  *metrics.Counter
 	responseTimes *metrics.Histogram
@@ -135,7 +137,7 @@ type runner struct {
 }
 
 func csvFilePath(name, expID, resultsPath string) string {
-	return filepath.Join(resultsPath, name+"_"+expID+".csv")
+	return filepath.Join(resultsPath, name + "_" + expID + ".csv")
 }
 
 func (r *runner) Run() error {
@@ -146,6 +148,7 @@ func (r *runner) Run() error {
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, os.Interrupt, os.Kill)
 
+	pauseTime := int64(0)
 	pauseChan := make(chan time.Duration)
 	scanner := bufio.NewScanner(os.Stdin)
 	for count := 0; scanner.Scan(); count++ {
@@ -155,6 +158,13 @@ func (r *runner) Run() error {
 		entry := loadspec.Entry{}
 		if err := json.NewDecoder(strings.NewReader(scanner.Text())).Decode(&entry); err != nil {
 			return err
+		}
+		// Dropping requests made during pauses.
+		if pauseTime > 0 {
+			pauseTime -= entry.DelaySinceLastNanos
+			continue
+		} else {
+			pauseTime = 0
 		}
 		time.Sleep(time.Duration(entry.DelaySinceLastNanos))
 
@@ -214,9 +224,9 @@ func (r *runner) Run() error {
 			case code == http.StatusBadRequest:
 				searchResp := struct {
 					Error struct {
-						Type   string `json:"type"`
-						Reason string `json:"reason"`
-					} `json:"error"`
+						      Type   string `json:"type"`
+						      Reason string `json:"reason"`
+					      } `json:"error"`
 				}{}
 				if err := json.NewDecoder(resp.Body).Decode(&searchResp); err != nil {
 					fmt.Printf("error parsing bad request response: %q\n", err)
@@ -229,6 +239,9 @@ func (r *runner) Run() error {
 				os.Exit(-1)
 				return
 			case code == http.StatusServiceUnavailable || code == http.StatusTooManyRequests:
+				if atomic.LoadInt32(&isPaused) == 1 {
+					return
+				}
 				ra := resp.Header.Get("Retry-After")
 				if ra == "" {
 					// TODO(danielfireman): Make this more elegant. Leveraging cobra error messages.
@@ -241,25 +254,25 @@ func (r *runner) Run() error {
 					fmt.Println("Could not extract retry-after information")
 					os.Exit(-1)
 				}
-				pauseMillis := int64(pt * 1e9)
+				pauseMillis := int64(pt * 1e3)
 				r.pauseTimes.Record(pauseMillis)
-				pauseChan <- time.Duration(pauseMillis)
+				// If the loadtest is paused, ignore this signal.
+				if atomic.LoadInt32(&isPaused) == 1 {
+					return
+				}
+				// Only enqueue if the pause queue is empty.
+				if len(pauseChan) == 0 {
+					atomic.StoreInt32(&isPaused, 1)
+					pauseChan <- time.Duration(pauseMillis) * time.Millisecond
+				}
 			}
 		}()
-
 		// Non-blocking check of pauses.
 		select {
 		case pt := <-pauseChan:
+			pauseTime = pt.Nanoseconds()
 			time.Sleep(pt)
-			func() {
-				for {
-					select {
-					case <-pauseChan:
-					default:
-						return
-					}
-				} // Emptying pause channel before continue.
-			}()
+			atomic.StoreInt32(&isPaused, 0)
 		case <-sig:
 			fmt.Println("Interrupting load test.")
 			return nil
