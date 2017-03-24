@@ -58,10 +58,10 @@ type CSVIntGaugeSet struct {
 
 func (csv *CSVIntGaugeSet) Write(now int64) error {
 	values := csv.igs.Get()
-	strValues := make([]string, len(values) + 1)
+	strValues := make([]string, len(values)+1)
 	strValues[0] = strconv.FormatInt(now, 10)
 	for i, v := range csv.igs.Get() {
-		strValues[i + i] = strconv.FormatInt(v, 10)
+		strValues[i+1] = strconv.FormatInt(v, 10)
 	}
 	csv.w.Write(strValues)
 	csv.w.Flush()

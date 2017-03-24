@@ -14,12 +14,13 @@ import (
 )
 
 type Mem struct {
-	YoungPoolUsedBytes    *metrics.IntGauge
-	YoungPoolMaxBytes     *metrics.IntGauge
-	TenuredPoolUsedBytes  *metrics.IntGauge
-	TenuredPoolMaxBytes   *metrics.IntGauge
-	SurvivorPoolMaxBytes  *metrics.IntGauge
-	SurvivorPoolUsedBytes *metrics.IntGauge
+	YoungHeapPool    *metrics.IntGaugeSet
+	TenuredHeapPool  *metrics.IntGaugeSet
+	SurvivorHeapPool *metrics.IntGaugeSet
+	Heap             *metrics.IntGaugeSet
+	NonHeap          *metrics.IntGaugeSet
+	OS               *metrics.IntGaugeSet
+	Swap             *metrics.IntGaugeSet
 }
 
 type CPU struct {
@@ -28,10 +29,8 @@ type CPU struct {
 }
 
 type GC struct {
-	YoungTimeMillis *metrics.IntGauge
-	YoungCount      *metrics.IntGauge
-	FullTimeMillis  *metrics.IntGauge
-	FullCount       *metrics.IntGauge
+	Young *metrics.IntGaugeSet
+	Full  *metrics.IntGaugeSet
 }
 
 // DefaultConnections is the default amount of max open idle connections per
@@ -51,21 +50,20 @@ func NewCollector(host string, timeout time.Duration, debug bool) (*ESCollector,
 			},
 		},
 		Mem: Mem{
-			YoungPoolUsedBytes:    metrics.NewIntGauge(),
-			YoungPoolMaxBytes:     metrics.NewIntGauge(),
-			TenuredPoolUsedBytes:  metrics.NewIntGauge(),
-			TenuredPoolMaxBytes:   metrics.NewIntGauge(),
-			SurvivorPoolUsedBytes: metrics.NewIntGauge(),
-			SurvivorPoolMaxBytes:  metrics.NewIntGauge(),
+			YoungHeapPool:    metrics.NewIntGaugeSet("used", "max"),
+			TenuredHeapPool:  metrics.NewIntGaugeSet("used", "max"),
+			SurvivorHeapPool: metrics.NewIntGaugeSet("used", "max"),
+			Heap:             metrics.NewIntGaugeSet("used", "commited"),
+			NonHeap:          metrics.NewIntGaugeSet("used", "commited"),
+			OS:               metrics.NewIntGaugeSet("used", "total"),
+			Swap:             metrics.NewIntGaugeSet("used", "total"),
 		},
 		CPU: CPU{
 			Percent: metrics.NewIntGauge(),
 		},
 		GC: GC{
-			YoungCount:      metrics.NewIntGauge(),
-			YoungTimeMillis: metrics.NewIntGauge(),
-			FullCount:       metrics.NewIntGauge(),
-			FullTimeMillis:  metrics.NewIntGauge(),
+			Young: metrics.NewIntGaugeSet("count", "time"),
+			Full:  metrics.NewIntGaugeSet("count", "time"),
 		},
 	}, nil
 
@@ -89,6 +87,11 @@ type MemPoolInfo struct {
 	MaxInBytes  int64 `json:"max_in_bytes"`
 }
 
+type MemInfo struct {
+	UsedInBytes  int64 `json:"used_in_bytes"`
+	TotalInBytes int64 `json:"max_in_bytes"`
+}
+
 type CollectorInfo struct {
 	CollectionCount        int64 `json:"collection_count"`
 	CollectionTimeInMillis int64 `json:"collection_time_in_millis"`
@@ -102,6 +105,10 @@ type NodeStats struct {
 				Old      MemPoolInfo `json:"old"`
 				Survivor MemPoolInfo `json:"survivor"`
 			} `json:"pools"`
+			HeapUsedInBytes         int64 `json:"heap_used_in_bytes"`
+			HeapCommittedInBytes    int64 `json:"heap_committed_in_bytes"`
+			NonHeapUsedInBytes      int64 `json:"non_heap_used_in_bytes"`
+			NonHeapCommittedInBytes int64 `json:"non_heap_committed_in_bytes"`
 		} `json:"mem"`
 		GC struct {
 			Collectors struct {
@@ -114,6 +121,8 @@ type NodeStats struct {
 		CPU struct {
 			Percent int `json:"percent"`
 		} `json:"cpu"`
+		Mem  MemInfo `json:"mem"`
+		Swap MemInfo `json:"swap"`
 	} `json:"os"`
 }
 
@@ -142,20 +151,19 @@ func (c *ESCollector) Collect(ctx context.Context) error {
 	}
 
 	pools := ns.JVM.Mem.Pools
-	c.Mem.YoungPoolMaxBytes.Set(pools.Young.MaxInBytes)
-	c.Mem.YoungPoolUsedBytes.Set(pools.Young.UsedInBytes)
-	c.Mem.TenuredPoolMaxBytes.Set(pools.Old.MaxInBytes)
-	c.Mem.TenuredPoolUsedBytes.Set(pools.Old.UsedInBytes)
-	c.Mem.SurvivorPoolMaxBytes.Set(pools.Survivor.MaxInBytes)
-	c.Mem.SurvivorPoolUsedBytes.Set(pools.Survivor.UsedInBytes)
+	c.Mem.YoungHeapPool.Set(pools.Young.UsedInBytes, pools.Young.MaxInBytes)
+	c.Mem.TenuredHeapPool.Set(pools.Old.UsedInBytes, pools.Old.MaxInBytes)
+	c.Mem.SurvivorHeapPool.Set(pools.Survivor.UsedInBytes, pools.Survivor.MaxInBytes)
+	c.Mem.Heap.Set(ns.JVM.Mem.HeapUsedInBytes, ns.JVM.Mem.HeapCommittedInBytes)
+	c.Mem.NonHeap.Set(ns.JVM.Mem.NonHeapUsedInBytes, ns.JVM.Mem.NonHeapCommittedInBytes)
+	c.Mem.OS.Set(ns.OS.Mem.UsedInBytes, ns.OS.Mem.TotalInBytes)
+	c.Mem.Swap.Set(ns.OS.Swap.UsedInBytes, ns.OS.Swap.TotalInBytes)
 
 	cpu := ns.OS.CPU
 	c.CPU.Percent.Set(int64(cpu.Percent))
 
 	gc := ns.JVM.GC.Collectors
-	c.GC.YoungCount.Set(gc.Young.CollectionCount)
-	c.GC.YoungTimeMillis.Set(gc.Young.CollectionTimeInMillis)
-	c.GC.FullCount.Set(gc.Old.CollectionCount)
-	c.GC.FullTimeMillis.Set(gc.Old.CollectionTimeInMillis)
+	c.GC.Young.Set(gc.Young.CollectionCount, gc.Young.CollectionTimeInMillis)
+	c.GC.Full.Set(gc.Old.CollectionCount, gc.Old.CollectionTimeInMillis)
 	return nil
 }
