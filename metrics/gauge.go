@@ -5,6 +5,31 @@ import (
 	"sync/atomic"
 )
 
+
+func NewIntGaugeSet(header ...string) *IntGaugeSet {
+	return &IntGaugeSet{Header:header}
+}
+
+type IntGaugeSet struct {
+	sync.Mutex
+	v []int64
+	Header []string
+}
+
+func (g *IntGaugeSet) Set(v []int64) {
+	g.Lock()
+	defer g.Unlock()
+	copy(g.v, v)
+}
+
+func (g *IntGaugeSet) Get() []int64 {
+	g.Lock()
+	defer g.Unlock()
+	ret := make([]int64, len(g.v), len(g.v))
+	copy(ret, g.v)
+	return ret
+}
+
 func NewIntGauge() *IntGauge {
 	return &IntGauge{}
 }

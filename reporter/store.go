@@ -27,25 +27,53 @@ func CSVStore(i interface{}, path string) (Store, error) {
 		return nil, fmt.Errorf("unexpected metric: %T\n", t)
 	case *metrics.Histogram:
 		w.Write([]string{"ts", "count", "p50", "p90", "p99", "p999"})
-		return &CSVHistogram{f: f, w: w, v: i.(*metrics.Histogram)}, nil
+		return &CSVHistogram{fileAndWriter{f, w}, i.(*metrics.Histogram)}, nil
 	case *metrics.Counter:
 		w.Write([]string{"ts", "value"})
-		return &CSVCounter{f: f, w: w, v: i.(*metrics.Counter)}, nil
+		return &CSVCounter{fileAndWriter{f, w}, i.(*metrics.Counter)}, nil
 	case *metrics.IntGauge:
 		w.Write([]string{"ts", "value"})
-		return &CSVIntGauge{f: f, w: w, v: i.(*metrics.IntGauge)}, nil
+		return &CSVIntGauge{fileAndWriter{f, w}, i.(*metrics.IntGauge)}, nil
+	case *metrics.IntGaugeSet:
+		igs := i.(*metrics.IntGaugeSet)
+		w.Write(append([]string{"ts"}, igs.Header...))
+		return &CSVIntGaugeSet{fileAndWriter{f, w}, igs}, nil
 	}
 	return nil, nil
 }
 
-type CSVHistogram struct {
+type fileAndWriter struct {
 	f *os.File
 	w *csv.Writer
-	v *metrics.Histogram
 }
 
-func (csv *CSVHistogram) Close() error {
-	return csv.f.Close()
+func (fw *fileAndWriter) Close() error {
+	return fw.f.Close()
+}
+
+type CSVIntGaugeSet struct {
+	fileAndWriter
+	igs *metrics.IntGaugeSet
+}
+
+func (csv *CSVIntGaugeSet) Write(now int64) error {
+	values := csv.igs.Get()
+	strValues := make([]string, len(values) + 1)
+	strValues[0] = strconv.FormatInt(now, 10)
+	for i, v := range csv.igs.Get() {
+		strValues[i + i] = strconv.FormatInt(v, 10)
+	}
+	csv.w.Write(strValues)
+	csv.w.Flush()
+	if err := csv.w.Error(); err != nil {
+		return csv.w.Error()
+	}
+	return nil
+}
+
+type CSVHistogram struct {
+	fileAndWriter
+	v *metrics.Histogram
 }
 
 func (csv *CSVHistogram) Write(now int64) error {
@@ -66,13 +94,8 @@ func (csv *CSVHistogram) Write(now int64) error {
 }
 
 type CSVCounter struct {
-	f *os.File
-	w *csv.Writer
+	fileAndWriter
 	v *metrics.Counter
-}
-
-func (csv *CSVCounter) Close() error {
-	return csv.f.Close()
 }
 
 func (csv *CSVCounter) Write(now int64) error {
@@ -87,13 +110,8 @@ func (csv *CSVCounter) Write(now int64) error {
 }
 
 type CSVIntGauge struct {
-	f *os.File
-	w *csv.Writer
+	fileAndWriter
 	v *metrics.IntGauge
-}
-
-func (csv *CSVIntGauge) Close() error {
-	return csv.f.Close()
 }
 
 func (csv *CSVIntGauge) Write(now int64) error {
