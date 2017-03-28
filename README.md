@@ -102,6 +102,7 @@ Non-exaustive list of sources of inspiration:
 * [kosho/esperf](https://github.com/kosho/esperf): loadspec gen inspiration.
 * [coxx/es-slowlog](https://github.com/coxx/es-slowlog): ideas and pointers to other loadspec file formats
 * [tsenart/vegeta](https://github.com/tsenart/vegeta/) and [yandex/yandex-tank](https://github.com/yandex/yandex-tank): simple loadtest spec formats
+* [wg/wrk](https://github.com/wg/wrk): powerful [LUA](https://www.lua.org/) scripting for intercepting requests and responses
 
 # Thanks
 
