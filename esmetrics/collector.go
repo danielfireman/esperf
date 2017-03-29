@@ -137,8 +137,8 @@ func (c *ESCollector) Collect(ctx context.Context) error {
 	}
 	defer resp.Body.Close()
 
-	dResp, _ := httputil.DumpResponse(resp, true)
 	if c.debug {
+		dResp, _ := httputil.DumpResponse(resp, true)
 		fmt.Println(string(dResp))
 	}
 

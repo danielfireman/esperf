@@ -182,8 +182,8 @@ func (r *runner) Run() error {
 				r.clients <- client
 			}()
 
-			dReq, _ := httputil.DumpRequest(req, true)
 			if debug {
+				dReq, _ := httputil.DumpRequest(req, true)
 				fmt.Println(string(dReq))
 			}
 
@@ -199,8 +199,8 @@ func (r *runner) Run() error {
 				return
 			}
 
-			dResp, _ := httputil.DumpResponse(resp, true)
 			if debug {
+				dResp, _ := httputil.DumpResponse(resp, true)
 				fmt.Println(string(dResp))
 			}
 
