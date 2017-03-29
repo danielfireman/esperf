@@ -184,9 +184,12 @@ var RootCmd = &cobra.Command{
 		// Writing everything to stdout.
 		writer := bufio.NewWriter(os.Stdout)
 		defer writer.Flush()
-		if err := json.NewEncoder(writer).Encode(hits); err != nil {
+
+		out, err := json.MarshalIndent(hits, "", " ")
+		if err != nil {
 			return err
 		}
+		fmt.Fprint(writer, string(out))
 		fmt.Fprintf(os.Stderr, "sent %d requests.", count)
 		return nil
 	},
