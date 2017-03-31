@@ -127,8 +127,8 @@ var RootCmd = &cobra.Command{
 				}
 				req.WithContext(ctx)
 
-				dReq, _ := httputil.DumpRequest(req, true)
 				if debug {
+					dReq, _ := httputil.DumpRequest(req, true)
 					fmt.Printf("Processing term: %s\n", term)
 					fmt.Println(string(dReq))
 				}
@@ -141,13 +141,13 @@ var RootCmd = &cobra.Command{
 				}
 				defer resp.Body.Close()
 
-				dResp, _ := httputil.DumpResponse(resp, true)
 				if debug {
+					dResp, _ := httputil.DumpResponse(resp, true)
 					fmt.Println(string(dResp))
 				}
 
 				code := resp.StatusCode
-				if resp.StatusCode != 200 {
+				if resp.StatusCode != http.StatusOK {
 					dReq, _ := httputil.DumpRequest(req, true)
 					dResp, _ := httputil.DumpResponse(resp, true)
 					fmt.Fprintf(os.Stderr, "invalid status code. want:200 got:%d. term:%s lineno:%d req:%s, resp:%s\n", code, term, count+1, string(dReq), string(dResp))
@@ -166,7 +166,6 @@ var RootCmd = &cobra.Command{
 					return
 				}
 				hits = append(hits, Hit{Term: term, Count: searchResp.Hits.Total})
-				return
 			}(scanner.Text(), count)
 		}
 		if err := scanner.Err(); err != nil {
