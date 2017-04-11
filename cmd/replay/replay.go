@@ -108,7 +108,7 @@ var RootCmd = &cobra.Command{
 			reporter.MetricToCSV(collector.Mem.NonHeap, csvFilePath("mem.nonheap", expID, resultsPath)),
 			reporter.MetricToCSV(collector.Mem.OS, csvFilePath("mem.os", expID, resultsPath)),
 			reporter.MetricToCSV(collector.Mem.Swap, csvFilePath("mem.swap", expID, resultsPath)),
-			reporter.MetricToCSV(collector.CPU.Percent, csvFilePath("cpu.percent", expID, resultsPath)),
+			reporter.MetricToCSV(collector.CPU, csvFilePath("cpu", expID, resultsPath)),
 			reporter.MetricToCSV(collector.GC.Young, csvFilePath("gc.young", expID, resultsPath)),
 			reporter.MetricToCSV(collector.GC.Full, csvFilePath("gc.full", expID, resultsPath)),
 		)

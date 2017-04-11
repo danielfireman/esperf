@@ -23,11 +23,6 @@ type Mem struct {
 	Swap             *metrics.IntGaugeSet
 }
 
-type CPU struct {
-	Percent     *metrics.IntGauge
-	TotalMillis *metrics.IntGauge
-}
-
 type GC struct {
 	Young *metrics.IntGaugeSet
 	Full  *metrics.IntGaugeSet
@@ -58,9 +53,7 @@ func NewCollector(host string, timeout time.Duration, debug bool) (*ESCollector,
 			OS:               metrics.NewIntGaugeSet("used", "total"),
 			Swap:             metrics.NewIntGaugeSet("used", "total"),
 		},
-		CPU: CPU{
-			Percent: metrics.NewIntGauge(),
-		},
+		CPU: metrics.NewIntGaugeSet("percent", "time"),
 		GC: GC{
 			Young: metrics.NewIntGaugeSet("count", "time"),
 			Full:  metrics.NewIntGaugeSet("count", "time"),
@@ -74,7 +67,7 @@ type ESCollector struct {
 	url    string
 	client http.Client
 	GC     GC
-	CPU    CPU
+	CPU    *metrics.IntGaugeSet
 	Mem    Mem
 }
 
@@ -118,12 +111,15 @@ type NodeStats struct {
 		} `json:"gc"`
 	} `json:"jvm"`
 	OS struct {
-		CPU struct {
-			Percent int `json:"percent"`
-		} `json:"cpu"`
 		Mem  MemInfo `json:"mem"`
 		Swap MemInfo `json:"swap"`
 	} `json:"os"`
+	Process struct {
+		CPU struct {
+			Percent       int   `json:"percent"`
+			TotalInMillis int64 `json:"total_in_millis"`
+		} `json:"cpu"`
+	} `json:"process"`
 }
 
 type StatsResponse struct {
@@ -159,8 +155,7 @@ func (c *ESCollector) Collect(ctx context.Context) error {
 	c.Mem.OS.Set(ns.OS.Mem.UsedInBytes, ns.OS.Mem.TotalInBytes)
 	c.Mem.Swap.Set(ns.OS.Swap.UsedInBytes, ns.OS.Swap.TotalInBytes)
 
-	cpu := ns.OS.CPU
-	c.CPU.Percent.Set(int64(cpu.Percent))
+	c.CPU.Set(int64(ns.Process.CPU.Percent), ns.Process.CPU.TotalInMillis)
 
 	gc := ns.JVM.GC.Collectors
 	c.GC.Young.Set(gc.Young.CollectionCount, gc.Young.CollectionTimeInMillis)
