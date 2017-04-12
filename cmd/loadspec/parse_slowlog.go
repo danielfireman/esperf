@@ -38,7 +38,7 @@ var parseSlowlogCmd = &cobra.Command{
 		// Regular expression setup.
 		// The solution is based on regexp's named matches. For each entry, we build a map of
 		// of fields and values. This map is encoded as json and (buffered) written to stdout.
-		re, err := regexp.Compile(`\[(?P<ts>[^]]+)\].?\[.*\].?\[(?P<log_type>[^]]+)\].?\[(?P<host>[^]]+)\].?\[(?P<index>[^]]+)\].?\[.*\].*types\[(?P<types>[^]]+)\].*search_type\[(?P<search_type>[^]]+)\].*source\[(?P<source>[^]]+)\]`)
+		re, err := regexp.Compile(`\[(?P<ts>[^]]+)\].?\[.*\].?\[(?P<log_type>[^]]+)\].?\[(?P<host>[^]]+)\].?\[(?P<index>[^]]+)\].?\[.*\].*types\[(?P<types>[^]]+)\].*search_type\[(?P<search_type>[^]]+)\].*source\[(?P<source>.*)\], extra_source`)
 		if err != nil {
 			return err
 		}
