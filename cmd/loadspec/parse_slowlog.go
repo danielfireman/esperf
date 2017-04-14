@@ -3,16 +3,25 @@ package loadspec
 import (
 	"bufio"
 	"encoding/json"
-	"net/url"
 	"os"
 	"regexp"
 	"sort"
 	"strings"
 	"time"
 
+	"fmt"
+
 	"github.com/danielfireman/esperf/loadspec"
 	"github.com/spf13/cobra"
 )
+
+var (
+	indexOverrides []string
+)
+
+func init() {
+	parseSlowlogCmd.Flags().StringSliceVar(&indexOverrides, "index_overrides", []string{}, "Only queries to those indexes are going to be considered in the generated loadspec.")
+}
 
 var parseSlowlogCmd = &cobra.Command{
 	Use:   "parseslowlog",
@@ -33,8 +42,23 @@ var parseSlowlogCmd = &cobra.Command{
 
 		var urlArg string
 		if len(args) > 0 {
+			// To keep in par with gen, we only consider the host or host:port part of the URL.
 			urlArg = args[0]
+			prefix := ""
+			switch {
+			case strings.HasPrefix(urlArg, "http://"):
+				urlArg = strings.TrimPrefix(urlArg, "http://")
+				prefix = "http://"
+			case strings.HasPrefix(urlArg, "https://"):
+				urlArg = strings.TrimPrefix(urlArg, "https://")
+				prefix = "https://"
+			}
+			i := strings.Index(urlArg, "/")
+			if i > 0 {
+				urlArg = prefix + urlArg[:i]
+			}
 		}
+
 		// Regular expression setup.
 		// The solution is based on regexp's named matches. For each entry, we build a map of
 		// of fields and values. This map is encoded as json and (buffered) written to stdout.
@@ -47,6 +71,7 @@ var parseSlowlogCmd = &cobra.Command{
 		var entries loadspec.ByDelaySinceLastNanos
 		fields := make(map[string]string, numFields)
 		scanner := bufio.NewScanner(os.Stdin)
+		count := 0
 		for scanner.Scan() {
 			// Building a map using named matches.
 			matches := re.FindAllStringSubmatch(scanner.Text(), -1)[0]
@@ -60,6 +85,7 @@ var parseSlowlogCmd = &cobra.Command{
 			if fields[logTypeField] != "index.search.slowlog.query" {
 				continue
 			}
+
 			entry := loadspec.Entry{Source: fields[sourceField]}
 			// Making timestamp relative to the previous one. Simulate inter-arrival time can be as easy
 			// as a time.Sleep and trigger a goroutine.
@@ -70,26 +96,27 @@ var parseSlowlogCmd = &cobra.Command{
 			// Keeping timestamp here for post-processing bellow.
 			entry.DelaySinceLastNanos = t.UnixNano()
 			// Host argument is treated as full URL. This keeps consistency between here and gen command.
-			var u *url.URL
+
+			host := fields[hostField]
 			if urlArg != "" {
-				u, err = url.Parse(urlArg)
-				if err != nil {
-					return err
-				}
-			} else {
-				path := []string{fields[hostField], fields[indexField], fields[typesField], "_search"}
-				u, err = url.Parse(strings.Join(path, "/"))
-				if err != nil {
-					return err
-				}
-				q := u.Query()
-				if fields[searchTypeField] != "" {
-					q.Set("search_type", strings.ToLower(fields[searchTypeField]))
-				}
-				u.RawQuery = q.Encode()
+				host = urlArg
 			}
-			entry.URL = u.String()
+			index := fields[indexField]
+			if len(indexOverrides) > 0 {
+				index = indexOverrides[count%len(indexOverrides)]
+			}
+
+			// I would love to use url.URL, life is hard.
+			// More on that: https://github.com/golang/go/issues/18824
+			// TL;DR; We would like to use http://localhost:9200, but since go1.8 it is not allowed anymore.
+			path := []string{host, index, fields[typesField], "_search"}
+			st := ""
+			if fields[searchTypeField] != "" {
+				st = fmt.Sprintf("?search_type=%s", strings.ToLower(fields[searchTypeField]))
+			}
+			entry.URL = fmt.Sprintf("%s%s", strings.Join(path, "/"), st)
 			entries = append(entries, &entry)
+			count++
 		}
 		if err := scanner.Err(); err != nil {
 			return err
