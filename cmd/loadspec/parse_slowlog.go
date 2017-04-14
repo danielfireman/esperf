@@ -3,13 +3,12 @@ package loadspec
 import (
 	"bufio"
 	"encoding/json"
+	"fmt"
 	"os"
 	"regexp"
 	"sort"
 	"strings"
 	"time"
-
-	"fmt"
 
 	"github.com/danielfireman/esperf/loadspec"
 	"github.com/spf13/cobra"
@@ -17,10 +16,12 @@ import (
 
 var (
 	indexOverrides []string
+	maxDuration    time.Duration
 )
 
 func init() {
-	parseSlowlogCmd.Flags().StringSliceVar(&indexOverrides, "index_overrides", []string{}, "Only queries to those indexes are going to be considered in the generated loadspec.")
+	parseSlowlogCmd.Flags().StringSliceVar(&indexOverrides, "index_override", []string{}, "Override slowlog indexes. It is a list, flag could be repeated if you would the loadtest to hit many indexes.")
+	parseSlowlogCmd.Flags().DurationVar(&maxDuration, "max_duration", time.Duration(0), "Maximum duration of the generated loadspec. It could be smaller, if the slowlog comprise a smaller time frame.")
 }
 
 var parseSlowlogCmd = &cobra.Command{
@@ -128,8 +129,9 @@ var parseSlowlogCmd = &cobra.Command{
 		writer := bufio.NewWriter(os.Stdout)
 		defer writer.Flush()
 		enc := json.NewEncoder(writer)
-		var previousTimestamp, currTimestamp int64
+		var elapsed, previousTimestamp, currTimestamp int64
 		for i, e := range entries {
+			// Adjusting from timestamp to delay since last request. That makes a lot easier to replay.
 			currTimestamp = e.DelaySinceLastNanos
 			if i == 0 {
 				e.DelaySinceLastNanos = 0
@@ -139,6 +141,10 @@ var parseSlowlogCmd = &cobra.Command{
 			previousTimestamp = currTimestamp
 			if err := enc.Encode(&e); err != nil {
 				return err
+			}
+			elapsed += e.DelaySinceLastNanos
+			if elapsed >= maxDuration.Nanoseconds() {
+				break
 			}
 		}
 		return nil
