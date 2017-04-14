@@ -25,14 +25,15 @@ import (
 )
 
 var (
-	host        string
-	resultsPath string
-	expID       string
-	cint        time.Duration
-	timeout     time.Duration
-	debug       bool
-	numClients  int
-	isPaused    int32
+	host          string
+	resultsPath   string
+	expID         string
+	cint          time.Duration
+	timeout       time.Duration
+	debug         bool
+	numClients    int
+	isPaused      int32
+	continueOn400 bool
 )
 
 func init() {
@@ -43,6 +44,7 @@ func init() {
 	RootCmd.Flags().DurationVar(&timeout, "timeout", 30*time.Second, "Timeout to be used in connections to ES.")
 	RootCmd.Flags().BoolVar(&debug, "debug", false, "Dump requests and responses.")
 	RootCmd.Flags().IntVarP(&numClients, "num_clients", "c", 10, "Number of active clients making requests.")
+	RootCmd.Flags().BoolVar(&continueOn400, "continue_on_400s", false, "Whether the loadtest should continue if it receives a 400 response.")
 }
 
 var (
@@ -220,7 +222,7 @@ func (r *runner) Run() error {
 					return
 				}
 				r.responseTimes.Record(searchResp.TookInMillis)
-			case code == http.StatusBadRequest:
+			case code >= 400 || code < 500:
 				searchResp := struct {
 					Error struct {
 						Type   string `json:"type"`
@@ -233,10 +235,13 @@ func (r *runner) Run() error {
 					os.Exit(-1)
 					return
 				}
-				fmt.Printf("error querying server: %+v\n", searchResp.Error)
-				// TODO(danielfireman): Make this more elegant. Leveraging cobra error messages.
-				os.Exit(-1)
-				return
+				if !continueOn400 {
+					dReq, _ := httputil.DumpRequest(req, true)
+					fmt.Printf("error querying server:\nReq:%s\n Error:%+v\n", string(dReq), searchResp.Error)
+					// TODO(danielfireman): Make this more elegant. Leveraging cobra error messages.
+					os.Exit(-1)
+				}
+				r.errors.Inc()
 			case code == http.StatusServiceUnavailable || code == http.StatusTooManyRequests:
 				if atomic.LoadInt32(&isPaused) == 1 {
 					return
