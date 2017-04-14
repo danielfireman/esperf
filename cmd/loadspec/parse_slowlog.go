@@ -15,12 +15,12 @@ import (
 )
 
 var (
-	indexOverrides []string
-	maxDuration    time.Duration
+	indexOverride []string
+	maxDuration   time.Duration
 )
 
 func init() {
-	parseSlowlogCmd.Flags().StringSliceVar(&indexOverrides, "index_override", []string{}, "Override slowlog indexes. It is a list, flag could be repeated if you would the loadtest to hit many indexes.")
+	parseSlowlogCmd.Flags().StringSliceVar(&indexOverride, "index_override", []string{}, "Override slowlog indexes. It is a list, flag could be repeated if you would the loadtest to hit many indexes.")
 	parseSlowlogCmd.Flags().DurationVar(&maxDuration, "max_duration", time.Duration(0), "Maximum duration of the generated loadspec. It could be smaller, if the slowlog comprise a smaller time frame.")
 }
 
@@ -56,8 +56,9 @@ var parseSlowlogCmd = &cobra.Command{
 			}
 			i := strings.Index(urlArg, "/")
 			if i > 0 {
-				urlArg = prefix + urlArg[:i]
+				urlArg = urlArg[:i]
 			}
+			urlArg = prefix + urlArg
 		}
 
 		// Regular expression setup.
@@ -103,8 +104,8 @@ var parseSlowlogCmd = &cobra.Command{
 				host = urlArg
 			}
 			index := fields[indexField]
-			if len(indexOverrides) > 0 {
-				index = indexOverrides[count%len(indexOverrides)]
+			if len(indexOverride) > 0 {
+				index = indexOverride[count%len(indexOverride)]
 			}
 
 			// I would love to use url.URL, life is hard.
