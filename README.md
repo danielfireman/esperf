@@ -2,6 +2,7 @@
 
 Is a single-binary multiplatform command line tool to load test and collect metrics from your [ElasticSearch](https://github.com/elastic/elasticsearch) deployment. No need install dependencies or anything. Just download and use. Built with love by danielfireman and friends in Go. Esperf provides:
 
+* A load specification format that allows replaying the shape of the load, not only the requests made
 * Ability to perform queries based on a dictionary of words
 * Ability to properly handle 503 or 429 http responde codes, respecting the delay suggested by the Retry-After response header field.
 * Send query-based load following a constant or Poisson distribution
