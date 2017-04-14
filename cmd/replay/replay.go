@@ -222,7 +222,7 @@ func (r *runner) Run() error {
 					return
 				}
 				r.responseTimes.Record(searchResp.TookInMillis)
-			case code >= 400 || code < 500:
+			case code >= 400 && code < 500:
 				searchResp := struct {
 					Error struct {
 						Type   string `json:"type"`
