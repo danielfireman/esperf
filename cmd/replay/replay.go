@@ -149,40 +149,57 @@ func (r *runner) Run() error {
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, os.Interrupt, os.Kill)
 
-	pauseTime := int64(0)
-	pauseChan := make(chan time.Duration)
+	// Loading the whole load in memory upfront. This avoid glitches due to disk being slow during high load
+	// replays.
+	var replayBook []loadspec.Entry
 	scanner := bufio.NewScanner(os.Stdin)
-	for count := 0; scanner.Scan(); count++ {
-		// Note: Having a single worker or a single load generator is a way to guarantee the load will obey to a
-		// certain  distribution. For instance, 10 workers generating load following a Poisson distribution is
-		// different  from having Poisson ruling the overall load impressed on the service.
+	for scanner.Scan() {
 		entry := loadspec.Entry{}
 		if err := json.NewDecoder(strings.NewReader(scanner.Text())).Decode(&entry); err != nil {
 			return err
 		}
-		// Dropping requests made during pauses.
+		replayBook = append(replayBook, entry)
+	}
+
+	// Note: Having a single worker or a single load generator is a way to guarantee the load will obey to a
+	// certain  distribution. For instance, 10 workers generating load following a Poisson distribution is
+	// different from having Poisson ruling the overall load impressed on the service.
+	// Note 2: Dropping requests made during pauses.
+	pauseTime := int64(0)
+	pauseChan := make(chan time.Duration)
+	for _, entry := range replayBook {
 		if pauseTime > 0 {
 			pauseTime -= entry.DelaySinceLastNanos
 			continue
 		} else {
 			pauseTime = 0
 		}
-		time.Sleep(time.Duration(entry.DelaySinceLastNanos))
 
-		req, err := http.NewRequest("GET", entry.URL, strings.NewReader(entry.Source))
-		if err != nil {
-			return err
+		start := time.Now()
+
+		// Pretty simple thread-safe pool implementation.
+		client := <-r.clients
+
+		// Taking into account the time waiting for a free client.
+		delay := entry.DelaySinceLastNanos - (time.Now().Sub(start)).Nanoseconds()
+		if delay > 0 {
+			time.Sleep(time.Duration(delay))
 		}
 
 		wg.Add(1)
-		go func() {
+		go func(entry loadspec.Entry, client *http.Client) {
 			defer wg.Done()
-
-			// Pretty simple thread-safe pool implementation.
-			client := <-r.clients
 			defer func() {
 				r.clients <- client
 			}()
+
+			req, err := http.NewRequest("GET", entry.URL, strings.NewReader(entry.Source))
+			if err != nil {
+				// TODO(danielfireman): Make this more elegant. Leveraging cobra error messages.
+				fmt.Printf("Error creating request: %q\n", err)
+				os.Exit(-1)
+				return
+			}
 
 			if debug {
 				dReq, _ := httputil.DumpRequest(req, true)
@@ -270,7 +287,8 @@ func (r *runner) Run() error {
 					pauseChan <- time.Duration(pauseMillis) * time.Millisecond
 				}
 			}
-		}()
+		}(entry, client)
+
 		// Non-blocking check of pauses.
 		select {
 		case pt := <-pauseChan:
