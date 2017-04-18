@@ -46,7 +46,7 @@ type Const struct {
 }
 
 func (g *Const) Next() int64 {
-	return int64((float64(1) / g.qps) * 1e9)
+	return int64(float64(1e9) / g.qps)
 }
 
 // Generates an sequence of inter-arrival times following the Poisson distribution.
