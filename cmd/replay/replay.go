@@ -90,6 +90,11 @@ var RootCmd = &cobra.Command{
 			}
 		}
 
+		r.perRequest, err = reporter.NewPerRequestReport(csvFilePath("request", expID, resultsPath))
+		if err != nil {
+			return err
+		}
+
 		// TODO(danielfireman): Review metrics collection design.
 		collector, err := esmetrics.NewCollector(host, timeout, debug)
 		if err != nil {
@@ -135,6 +140,7 @@ type runner struct {
 	responseTimes *metrics.Histogram
 	errors        *metrics.Counter
 	pauseTimes    *metrics.Histogram
+	perRequest    *reporter.PerRequestReport
 }
 
 func csvFilePath(name, expID, resultsPath string) string {
@@ -144,6 +150,8 @@ func csvFilePath(name, expID, resultsPath string) string {
 func (r *runner) Run() error {
 	r.report.Start()
 	defer r.report.Finish()
+	r.perRequest.Start()
+	defer r.perRequest.Finish()
 
 	var wg sync.WaitGroup
 	sig := make(chan os.Signal, 1)
@@ -228,6 +236,7 @@ func (r *runner) Run() error {
 			switch {
 			default:
 				r.errors.Inc()
+				r.perRequest.RequestProcessed(time.Now().Unix(), resp.StatusCode, 0)
 			case code == http.StatusOK:
 				searchResp := struct {
 					TookInMillis int64 `json:"took"`
@@ -239,7 +248,10 @@ func (r *runner) Run() error {
 					return
 				}
 				r.responseTimes.Record(searchResp.TookInMillis)
+				r.perRequest.RequestProcessed(time.Now().Unix(), resp.StatusCode, searchResp.TookInMillis)
+
 			case code >= 400 && code < 500:
+				r.perRequest.RequestProcessed(time.Now().Unix(), resp.StatusCode, 0)
 				searchResp := struct {
 					Error struct {
 						Type   string `json:"type"`
@@ -260,6 +272,7 @@ func (r *runner) Run() error {
 				}
 				r.errors.Inc()
 			case code == http.StatusServiceUnavailable || code == http.StatusTooManyRequests:
+				r.perRequest.RequestProcessed(time.Now().Unix(), resp.StatusCode, 0)
 				if atomic.LoadInt32(&isPaused) == 1 {
 					return
 				}

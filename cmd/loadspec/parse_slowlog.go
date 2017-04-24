@@ -144,10 +144,11 @@ var parseSlowlogCmd = &cobra.Command{
 				return err
 			}
 			elapsed += e.DelaySinceLastNanos
-			if elapsed >= maxDuration.Nanoseconds() {
+			if maxDuration.Nanoseconds() > 0 && elapsed >= maxDuration.Nanoseconds() {
 				break
 			}
 		}
+		fmt.Fprintf(os.Stderr, "Test duration: %v\n", time.Duration(elapsed))
 		return nil
 	},
 }
