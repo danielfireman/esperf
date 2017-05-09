@@ -21,15 +21,15 @@ func NewPerRequestReport(path string) (*PerRequestReport, error) {
 		return nil, err
 	}
 	w := csv.NewWriter(bufio.NewWriter(f))
-	w.Write([]string{"ts", "code", "took_in_millis"})
+	w.Write([]string{"ts", "code", "took_in_millis", "id"})
 	if err := w.Error(); err != nil {
 		return nil, w.Error()
 	}
 	return &PerRequestReport{f, w, make(chan []string, 10000)}, nil
 }
 
-func (p *PerRequestReport) RequestProcessed(ts int64, code int, tookInMillis int64) {
-	p.c <- []string{fmt.Sprintf("%d", ts), fmt.Sprintf("%d", code), fmt.Sprintf("%d", tookInMillis)}
+func (p *PerRequestReport) RequestProcessed(ts int64, code int, tookInMillis int64, id int) {
+	p.c <- []string{fmt.Sprintf("%d", ts), fmt.Sprintf("%d", code), fmt.Sprintf("%d", tookInMillis), fmt.Sprintf("%d", id)}
 }
 
 func (p *PerRequestReport) Start() {

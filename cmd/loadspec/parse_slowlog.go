@@ -132,6 +132,7 @@ var parseSlowlogCmd = &cobra.Command{
 		enc := json.NewEncoder(writer)
 		var elapsed, previousTimestamp, currTimestamp int64
 		for i, e := range entries {
+            e.ID = i
 			// Adjusting from timestamp to delay since last request. That makes a lot easier to replay.
 			currTimestamp = e.DelaySinceLastNanos
 			if i == 0 {

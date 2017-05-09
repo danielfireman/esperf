@@ -236,7 +236,7 @@ func (r *runner) Run() error {
 			switch {
 			default:
 				r.errors.Inc()
-				r.perRequest.RequestProcessed(time.Now().Unix(), resp.StatusCode, 0)
+				r.perRequest.RequestProcessed(time.Now().Unix(), resp.StatusCode, 0, entry.ID)
 			case code == http.StatusOK:
 				searchResp := struct {
 					TookInMillis int64 `json:"took"`
@@ -248,10 +248,10 @@ func (r *runner) Run() error {
 					return
 				}
 				r.responseTimes.Record(searchResp.TookInMillis)
-				r.perRequest.RequestProcessed(time.Now().Unix(), resp.StatusCode, searchResp.TookInMillis)
+				r.perRequest.RequestProcessed(time.Now().Unix(), resp.StatusCode, searchResp.TookInMillis, entry.ID)
 
 			case code >= 400 && code < 500:
-				r.perRequest.RequestProcessed(time.Now().Unix(), resp.StatusCode, 0)
+				r.perRequest.RequestProcessed(time.Now().Unix(), resp.StatusCode, 0, entry.ID)
 				searchResp := struct {
 					Error struct {
 						Type   string `json:"type"`
@@ -272,7 +272,7 @@ func (r *runner) Run() error {
 				}
 				r.errors.Inc()
 			case code == http.StatusServiceUnavailable || code == http.StatusTooManyRequests:
-				r.perRequest.RequestProcessed(time.Now().Unix(), resp.StatusCode, 0)
+				r.perRequest.RequestProcessed(time.Now().Unix(), resp.StatusCode, 0, entry.ID)
 				if atomic.LoadInt32(&isPaused) == 1 {
 					return
 				}

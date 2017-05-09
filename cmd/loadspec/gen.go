@@ -81,7 +81,10 @@ var genLoadspec = &cobra.Command{
 		ia := int64(0)
 		entry := loadspec.Entry{}
 		hasTerms := len(terms) > 0
+        id := 0
 		for currTime := int64(0); currTime <= finalTime; currTime += ia {
+            entry.ID = id
+            id++
 			entry.DelaySinceLastNanos = ia
 			entry.URL = url
 			if hasTerms {
