@@ -73,7 +73,7 @@ The following command runs a load test based on the passed in specification. All
 current directory (`$PWD`) and statistics will be collected each second from http://localhost:9200.
 
 ```bash
-cat poisson.loadspec.json | ./esperf replay --mon_addr=http://localhost:9200 --mon_interval=1s --results_path=$PWD
+cat poisson.loadspec.json | ./esperf replay --mon_host=http://localhost:9200 --mon_interval=1s --results_path=$PWD
 ```
 
 ### Hit count
