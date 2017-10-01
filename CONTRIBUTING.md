@@ -12,7 +12,12 @@ This project shares Go's code of conduct [values](https://golang.org/conduct#val
      * Fork and pull the latest version of the master branch
      * Make sure you have go 1.8+ installed and you're using it
 
-* Before sending the PR:
+* Requirements
+    * Compliance with [these guidelines](https://code.google.com/p/go-wiki/wiki/CodeReviewComments]
+    * Good unit test coverage
+    * [Good commit messages](http://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html)
+
+* Before sending the PR
 
 ```sh
 $ cd $GOPATH/src/github.com/frictionlessdata/tableschema-go
