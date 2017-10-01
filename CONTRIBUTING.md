@@ -13,7 +13,7 @@ This project shares Go's code of conduct [values](https://golang.org/conduct#val
      * Make sure you have go 1.8+ installed and you're using it
 
 * Requirements
-    * Compliance with [these guidelines](https://code.google.com/p/go-wiki/wiki/CodeReviewComments]
+    * Compliance with [these guidelines](https://code.google.com/p/go-wiki/wiki/CodeReviewComments)
     * Good unit test coverage
     * [Good commit messages](http://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html)
 
