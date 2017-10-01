@@ -20,7 +20,7 @@ This project shares Go's code of conduct [values](https://golang.org/conduct#val
 * Before sending the PR
 
 ```sh
-$ cd $GOPATH/src/github.com/frictionlessdata/tableschema-go
+$ cd $GOPATH/src/github.com/danielfireman/esperf
 $ ./fmt.sh
 $ go test ./..
 ```
