@@ -94,13 +94,13 @@ var RootCmd = &cobra.Command{
 	Long:  "Multiplatform command line tool to load test and collect metrics from your ElasticSearch deployment.",
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		if numClients < 1 {
-			return fmt.Errorf("number of clients must be positive.")
+			return fmt.Errorf("number of clients must be positive")
 		}
 
 		var err error
 		r = runner{}
 		if resultsPath == "" {
-			return fmt.Errorf("results path can not be empty. Please set --results_path flag.")
+			return fmt.Errorf("results path can not be empty. Please set --results_path flag")
 		}
 
 		r.requestsSent = metrics.NewCounter()
@@ -233,6 +233,7 @@ func (r *runner) Run() error {
 				r.clients <- client
 			}()
 
+			startRequest := time.Now()
 			req, err := newRequest(entry.URL, entry.Source)
 			if err != nil {
 				// TODO(danielfireman): Make this more elegant. Leveraging cobra error messages.
@@ -257,6 +258,7 @@ func (r *runner) Run() error {
 				fmt.Printf("Error sending request: %q\n", err)
 				return
 			}
+			latency := time.Now().Sub(startRequest).Nanoseconds() / int64(1000)
 
 			if debug {
 				dResp, _ := httputil.DumpResponse(resp, true)
@@ -268,7 +270,7 @@ func (r *runner) Run() error {
 			switch {
 			default:
 				r.errors.Inc()
-				r.perRequest.RequestProcessed(time.Now().Unix(), resp.StatusCode, 0, entry.ID)
+				r.perRequest.RequestProcessed(time.Now().Unix(), resp.StatusCode, 0, 0, entry.ID)
 			case code == http.StatusOK:
 				searchResp := struct {
 					TookInMillis int64 `json:"took"`
@@ -280,10 +282,9 @@ func (r *runner) Run() error {
 					return
 				}
 				r.responseTimes.Record(searchResp.TookInMillis)
-				r.perRequest.RequestProcessed(time.Now().Unix(), resp.StatusCode, searchResp.TookInMillis, entry.ID)
-
+				r.perRequest.RequestProcessed(time.Now().Unix(), resp.StatusCode, searchResp.TookInMillis, latency, entry.ID)
 			case code >= 400 && code < 500:
-				r.perRequest.RequestProcessed(time.Now().Unix(), resp.StatusCode, 0, entry.ID)
+				r.perRequest.RequestProcessed(time.Now().Unix(), resp.StatusCode, 0, 0, entry.ID)
 				searchResp := struct {
 					Error struct {
 						Type   string `json:"type"`
@@ -304,7 +305,7 @@ func (r *runner) Run() error {
 				}
 				r.errors.Inc()
 			case code == http.StatusServiceUnavailable || code == http.StatusTooManyRequests:
-				r.perRequest.RequestProcessed(time.Now().Unix(), resp.StatusCode, 0, entry.ID)
+				r.perRequest.RequestProcessed(time.Now().Unix(), resp.StatusCode, 0, 0, entry.ID)
 				if atomic.LoadInt32(&isPaused) == 1 {
 					return
 				}

@@ -7,7 +7,7 @@ import (
 	"os"
 )
 
-// Reporter that tracks and keeps metrics for each request across the whole
+// PerRequestReport that tracks and keeps metrics for each request across the whole
 // load test.
 type PerRequestReport struct {
 	f *os.File
@@ -28,8 +28,14 @@ func NewPerRequestReport(path string) (*PerRequestReport, error) {
 	return &PerRequestReport{f, w, make(chan []string, 10000)}, nil
 }
 
-func (p *PerRequestReport) RequestProcessed(ts int64, code int, tookInMillis int64, id int) {
-	p.c <- []string{fmt.Sprintf("%d", ts), fmt.Sprintf("%d", code), fmt.Sprintf("%d", tookInMillis), fmt.Sprintf("%d", id)}
+func (p *PerRequestReport) RequestProcessed(ts int64, code int, tookInMillis, latency int64, id int) {
+	p.c <- []string{
+		fmt.Sprintf("%d", ts),
+		fmt.Sprintf("%d", code),
+		fmt.Sprintf("%d", tookInMillis),
+		fmt.Sprintf("%d", latency),
+		fmt.Sprintf("%d", id),
+	}
 }
 
 func (p *PerRequestReport) Start() {
