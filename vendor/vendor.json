@@ -3,6 +3,12 @@
 	"ignore": "test",
 	"package": [
 		{
+			"checksumSHA1": "m/yQwUj20R9mPbTq9B0WMDutJ9U=",
+			"path": "github.com/matryer/is",
+			"revision": "c0323ceb4e996e4a8795670d1fb6f60e65b82fd2",
+			"revisionTime": "2017-01-12T13:46:59Z"
+		},
+		{
 			"checksumSHA1": "h7XQ+skBK3lPd0YCiX0p+rXvpco=",
 			"path": "github.com/spenczar/tdigest",
 			"revision": "78a75964bd605a2b7167a034cf51ee0d6f854704",
