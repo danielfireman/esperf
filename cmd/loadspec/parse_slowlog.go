@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/danielfireman/esperf/anon"
 	"github.com/danielfireman/esperf/loadspec"
 	"github.com/spf13/cobra"
 )
@@ -16,11 +17,15 @@ import (
 var (
 	indexOverride []string
 	maxDuration   time.Duration
+	anonymizedMap string
+	anonFields    []string
 )
 
 func init() {
 	parseSlowlogCmd.Flags().StringSliceVar(&indexOverride, "index_override", []string{}, "Override slowlog indexes. It is a list, flag could be repeated if you would the loadtest to hit many indexes.")
 	parseSlowlogCmd.Flags().DurationVar(&maxDuration, "max_duration", time.Duration(0), "Maximum duration of the generated loadspec. It could be smaller, if the slowlog comprise a smaller time frame.")
+	parseSlowlogCmd.Flags().StringVar(&anonymizedMap, "anonymized_map_path", "", "Path to the dictionary of anonymized fields.")
+	parseSlowlogCmd.Flags().StringSliceVar(&anonFields, "anon_fields", []string{}, "Name of the fields in the source document that must be anonymized. Only accept numbers and strings.")
 }
 
 var parseSlowlogCmd = &cobra.Command{
@@ -48,6 +53,14 @@ var parseSlowlogCmd = &cobra.Command{
 			urlArg = prefix + urlArg
 		}
 
+		var anonymizer *anon.Anonymizer
+		if anonymizedMap != "" {
+			anonymizer = &anon.Anonymizer{
+				FMap: anon.MustReadFieldsMap(anonymizedMap),
+				FRE:  anon.MustParseFieldsRE(anonFields),
+			}
+		}
+
 		var entries loadspec.ByDelaySinceLastNanos
 		scanner := bufio.NewScanner(os.Stdin)
 		count := 0
@@ -58,6 +71,21 @@ var parseSlowlogCmd = &cobra.Command{
 			if logEntry.LogType != "index.search.slowlog.query" {
 				continue
 			}
+
+			// Even though unmarshal and marshal consumes more CPU, it validates the source and sorts the fields,
+			// which makes comparison much easier.
+			var obj map[string]interface{}
+			if err := json.Unmarshal([]byte(logEntry.Source), &obj); err != nil {
+				return err
+			}
+			if anonymizer != nil {
+				anonymizer.Anonymize(obj)
+			}
+			src, err := json.Marshal(obj)
+			if err != nil {
+				return err
+			}
+			logEntry.Source = string(src)
 
 			entry := loadspec.Entry{Source: logEntry.Source}
 			// Making timestamp relative to the previous one. Simulate inter-arrival time can be as easy

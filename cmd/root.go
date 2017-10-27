@@ -27,5 +27,5 @@ func init() {
 	RootCmd.AddCommand(replay.RootCmd)
 	RootCmd.AddCommand(loadspec.RootCmd)
 	RootCmd.AddCommand(hitcounter.RootCmd)
-	RootCmd.AddCommand(anonymize.RootCmd)
+	RootCmd.AddCommand(anonymizeindex.RootCmd)
 }
