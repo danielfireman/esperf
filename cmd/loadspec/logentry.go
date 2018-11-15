@@ -14,7 +14,7 @@ const (
 	numFields       = 7
 )
 
-var matcherRE = regexp.MustCompile(`\[(?P<ts>[^]]+)\].?\[.*\].?\[(?P<log_type>[^]]+)\].?\[(?P<host>[^]]+)\].?\[(?P<index>[^]]+)\].?\[.*\].*types\[(?P<types>[^]]+)\].*search_type\[(?P<search_type>[^]]+)\].*source\[(?P<source>.*)\], extra_source`)
+var matcherRE = regexp.MustCompile(`\[(?P<ts>[^]]+)\].?\[.*\].?\[(?P<log_type>[^]]+)\].?\[(?P<host>.*)\].?\[(?P<index>[^]]+)\].?\[.*\].*types\[(?P<types>.*)\].*stats.*search_type\[(?P<search_type>[^]]+)\].*source\[(?P<source>.*)\], extra_source`)
 var subExpNames = matcherRE.SubexpNames()
 
 type slowlogEntry struct {
